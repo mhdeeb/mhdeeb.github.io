@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!-- this attribute specifies the language of the document -->
+  <head>
+    <meta charset="UTF-8" />
+    <!-- this meta tag is used to specify the character encoding for the HTML document -->
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
+    />
+    <!-- this meta tag is used to make the content of the page responsive to the size of the device's screen -->
+    <title>CS4406 Computer Graphics - Assignment #4</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.min.js"
+        }
+      }
+    </script>
+
+    <!-- this script tag is used to import the dat.gui library -->
+  </head>
+  <body style="margin: 0; display: flex">
+    <script type="module">
+      import * as THREE from "three";
+      import Stats from "https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js";
+      import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/controls/OrbitControls.js";
+      // import the necessary modules from the three.js library
+
+      const gui = new dat.GUI();
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      let renderer = new THREE.WebGLRenderer({ antialias: true }); // antialiasing is a technique used to improve the quality of the image produced by the renderer
+
+      renderer.setPixelRatio(window.devicePixelRatio); // this insures that the quality of the image produced by the renderer is consistent across different devices.
+
+      renderer.setSize(width, height); // set the size of the renderer to the size of the window
+
+      document.body.appendChild(renderer.domElement); // add the renderer to the body of the document
+      const stats = new Stats(); // create a stats object
+      document.body.appendChild(stats.dom); // add the stats object to the body of the document
+      let fov = 45;
+      let camera = new THREE.PerspectiveCamera(fov, width / height, 1, 100); // create a perspective camera with a 45 degree field of view, an aspect ratio of the window's aspect ratio, a near clipping plane of 1, and a far clipping plane of 100
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.listenToKeyEvents(window); // add the orbit keyboard controls to the camera
+      controls.rotateSpeed = 5;
+      //   controls.enablePan = false;
+      controls.minPolarAngle = Math.PI / 2;
+      controls.maxPolarAngle = Math.PI / 2;
+
+      let distance = 20;
+      let boundingHeight = Math.tan((fov * (Math.PI / 180)) / 2) * distance;
+      let boundingWidth = boundingHeight * (width / height);
+      camera.position.set(0, 0, distance);
+
+      window.addEventListener("resize", () => {
+        width = window.innerWidth;
+        height = window.innerHeight;
+
+        boundingHeight = Math.tan((fov * (Math.PI / 180)) / 2) * distance;
+        boundingWidth = boundingHeight * (width / height);
+
+        camera.aspect = width / height;
+
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(width, height);
+      }); // this event listener will update the camera's aspect ratio and the renderer's size when the window is resized
+
+      let scene = new THREE.Scene();
+
+      scene.background = new THREE.Color("#87CEEB"); // set the background color
+
+      scene.add(camera);
+
+      // ==========================================================
+      // ======================== Relevant Code ========================
+      // ==========================================================
+
+      let cubeGeometry = new THREE.BoxGeometry(4, 4, 4); // create a cube geometry
+
+      const texture_links = [
+        "https://raw.githubusercontent.com/mhdeeb/mhdeeb.github.io/main/img/t1.jpg",
+        "https://raw.githubusercontent.com/mhdeeb/mhdeeb.github.io/main/img/t2.jpg",
+        "https://raw.githubusercontent.com/mhdeeb/mhdeeb.github.io/main/img/t3.jpg",
+        "https://raw.githubusercontent.com/mhdeeb/mhdeeb.github.io/main/img/t4.webp",
+      ]; // create an array of texture links
+
+      const textureLoader = new THREE.TextureLoader(); // create a texture loader
+
+      const textures = [
+        new THREE.MeshStandardMaterial({
+          map: textureLoader.load(texture_links[0]),
+        }),
+        new THREE.MeshStandardMaterial({
+          map: textureLoader.load(texture_links[1]),
+        }),
+        new THREE.MeshStandardMaterial(),
+        new THREE.MeshStandardMaterial(),
+        new THREE.MeshStandardMaterial({
+          map: textureLoader.load(texture_links[2]),
+        }),
+        new THREE.MeshStandardMaterial({
+          map: textureLoader.load(texture_links[3]),
+        }),
+      ]; // create an array of materials
+
+      let shape = new THREE.Mesh(cubeGeometry, textures); // create a cube mesh
+
+      let settings = {
+        rotate_cube: true,
+      }; // create a settings object
+
+      gui.add(settings, "rotate_cube"); // add the rotate_cube setting to the gui
+
+      scene.add(shape); // add the cube to the scene
+
+      let sun = new THREE.DirectionalLight(0xffffff, 3); // create a light source
+
+      sun.position.set(-6, 6, 6); // set the position of the light source to the upper left corner
+
+      let sun_wireframe = new THREE.LineSegments(
+        new THREE.WireframeGeometry(new THREE.SphereGeometry(2, 1, 1))
+      ); // create a wireframe of the light source
+
+      sun.add(sun_wireframe); // add the line to the scene
+
+      scene.add(sun); // add the light source to the scene
+
+      function update() {
+        if (settings.rotate_cube) {
+          shape.rotateY(-0.01); // rotate the shape counter-clockwise around the y-axis
+        }
+      }
+
+      // ==========================================================
+      // ======================== End Relevant Code =====================
+      // ==========================================================
+
+      function render() {
+        renderer.render(scene, camera); // render the scene from the perspective of the camera
+      }
+
+      function animate() {
+        update(); // update the pentagon's rotation
+        render(); // render the scene
+        stats.update(); // update the stats
+        requestAnimationFrame(animate); // request the next frame
+      }
+
+      animate(); // start the animation
+    </script>
+  </body>
+</html>
