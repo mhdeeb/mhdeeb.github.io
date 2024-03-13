@@ -105,38 +105,12 @@
       sun.shadow.camera.top = 10;
       sun.shadow.camera.bottom = -10;
 
-      sun.position.set(100, 0, 0); // set the position of the light source to the upper left corner
-
-      let sun_wireframe = new THREE.LineSegments(
-        new THREE.WireframeGeometry(new THREE.SphereGeometry(2, 1, 1))
-      ); // create a wireframe of the light source
-
-      sun.add(sun_wireframe); // add the wireframe to the light source to make it visible
-
       scene.add(sun); // add the light source to the scene
 
-      sun.position.applyMatrix4(new THREE.Matrix4().makeRotationY(-0.5)); // rotate the light source clockwise
+      sun.position.set(100, 0, 0); // set the position of the light source to the upper left corner
 
       // let ambient = new THREE.AmbientLight(0x404040);
       // scene.add(ambient);
-
-      // ========================= SETTINGS =======================
-
-      let settings = {
-        sun_rotation: true,
-        sun_rotation_speed: 0.001,
-        reset: function () {
-          settings.sun_rotation = true;
-          settings.sun_rotation_speed = 0.001;
-          sun.position.set(100, 0, 0);
-        },
-      }; // create a settings object
-
-      gui.add(settings, "sun_rotation").name("Sun Rotation"); // add a checkbox to the gui to enable/disable the sun's rotation
-      gui
-        .add(settings, "sun_rotation_speed", 0, 0.01)
-        .name("Sun Rotation Speed"); // add a slider to the gui to control the speed of the sun's rotation
-      gui.add(settings, "reset").name("Reset"); // add a button to the gui to reset the settings
 
       // ========================== EARTH =========================
 
@@ -155,8 +129,6 @@
 
       earth.castShadow = true; // enable shadow casting
       earth.receiveShadow = true; // enable shadow receiving
-
-      earth.position.set(0, 0, 0); // set the position of the earth
 
       scene.add(earth); // add the earth to the scene
 
@@ -200,33 +172,58 @@
 
       // ==========================================================
 
+      // ========================= SETTINGS =======================
+
+      let settings = {
+        sun_rotation: true,
+        speed: 1,
+        reset: function () {
+          settings.sun_rotation = true;
+          settings.speed = 1;
+          sun.position.set(100, 0, 0);
+          moon.position.set(10, 0, 0);
+        },
+      }; // create a settings object
+
+      gui.add(settings, "sun_rotation").name("Sun Rotation"); // add a checkbox to the gui to enable/disable the sun's rotation
+      gui.add(settings, "speed", 0, 10).name("Speed Multiplier"); // add a slider to the gui to control the speed of the sun's rotation
+      gui.add(settings, "reset").name("Reset"); // add a button to the gui to reset the settings
+
+      // ==========================================================
+
       function update() {
+        const earth_rotation_speed = (settings.speed * Math.PI) / 60;
+        const moon_rotation_speed = earth_rotation_speed / 30;
+        const moon_orbit_speed = moon_rotation_speed;
+        const sun_rotation_speed = earth_rotation_speed / 365;
+
         // rotate the earth on its axis of angle of 23.5 degrees
-        let rotation = new THREE.Matrix4().makeRotationAxis(
-          new THREE.Vector3(0.39874907, 0.91706007, 0),
-          Math.PI / 180
+        earth.geometry.applyMatrix4(
+          new THREE.Matrix4().makeRotationAxis(
+            new THREE.Vector3(0.39874907, 0.91706007, 0),
+            earth_rotation_speed
+          )
         );
-        earth.geometry.applyMatrix4(rotation);
 
         // rotate the moon on its axis of angle of 6.68 degrees
         let rotation2 = new THREE.Matrix4().makeRotationAxis(
           new THREE.Vector3(0.11632405, 0.99321131, 0),
-          Math.PI / 360
+          moon_rotation_speed
         );
         moon.geometry.applyMatrix4(rotation2);
 
         // rotate the moon in an orbit around the earth
 
-        const moonOrbit = new THREE.Matrix4().makeRotationY(Math.PI / 360);
-        moon.position.applyMatrix4(moonOrbit);
+        moon.position.applyMatrix4(
+          new THREE.Matrix4().makeRotationY(moon_orbit_speed)
+        );
 
         // rotate the light source
 
         if (settings.sun_rotation) {
-          const sunOrbit = new THREE.Matrix4().makeRotationY(
-            settings.sun_rotation_speed
+          sun.position.applyMatrix4(
+            new THREE.Matrix4().makeRotationY(sun_rotation_speed)
           );
-          sun.position.applyMatrix4(sunOrbit);
         }
       }
 
