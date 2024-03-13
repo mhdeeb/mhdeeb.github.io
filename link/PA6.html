@@ -148,6 +148,7 @@
 
       let earth_material = new THREE.MeshPhongMaterial({
         map: earth_texture,
+        shininess: 100,
       }); // create a material for the earth
 
       let earth = new THREE.Mesh(earth_geometry, earth_material); // create a mesh for the earth
@@ -169,6 +170,7 @@
 
       let moon_material = new THREE.MeshPhongMaterial({
         map: moon_texture,
+        shininess: 100,
       }); // create a material for the moon
 
       let moon = new THREE.Mesh(moon_geometry, moon_material); // create a mesh for the moon
