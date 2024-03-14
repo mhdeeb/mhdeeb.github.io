@@ -50,12 +50,20 @@
 
       let controls = new OrbitControls(camera, renderer.domElement);
 
-      let distance = 40;
+      let distance = 70;
       let boundingHeight = Math.tan((fov * (Math.PI / 180)) / 2) * distance;
       let boundingWidth = boundingHeight * (width / height);
-      camera.position.set(-70, 40, distance);
+
+      camera.position.x = 150;
+      camera.position.y = 50;
+
+      camera.position.applyMatrix4(
+        new THREE.Matrix4().makeRotationY(-Math.PI / 8)
+      );
 
       camera.lookAt(0, 0, 0);
+
+      controls.saveState();
 
       window.addEventListener("resize", () => {
         width = window.innerWidth;
@@ -146,7 +154,7 @@
       earth.castShadow = true; // enable shadow casting
       earth.receiveShadow = true; // enable shadow receiving
 
-      earth.position.set(50, 0, 0); // set the position of the earth
+      earth.position.set(0, 0, -50); // set the position of the earth
 
       sun.add(earth); // add the earth to the scene
 
@@ -201,8 +209,7 @@
           settings.speed = 1;
           earth.position.set(50, 0, 0);
           moon.position.set(0, 0, 10);
-          camera.position.set(-70, 40, distance);
-          camera.lookAt(0, 0, 0);
+          controls.reset();
         },
       }; // create a settings object
 
@@ -212,7 +219,7 @@
       // ==========================================================
 
       function update() {
-        const earth_rotation_speed = settings.speed * 2 * Math.PI / 60;
+        const earth_rotation_speed = (settings.speed * 2 * Math.PI) / 30;
         const earth_orbit_speed = earth_rotation_speed / 365;
         const moon_rotation_speed = earth_rotation_speed / 30;
         const moon_orbit_speed = moon_rotation_speed;
