@@ -77,7 +77,7 @@
 
       loadingManager.onProgress = function (url, itemsLoaded, itemsTotal) {
         progressBar.value = (itemsLoaded / itemsTotal) * 100;
-        progressLabel.textContent = `Loading file: ${url}. Loaded ${itemsLoaded} of ${itemsTotal} files.`;
+        progressLabel.textContent = `Loaded ${itemsLoaded} of ${itemsTotal} files.`;
       };
 
       loadingManager.onError = function (url) {
