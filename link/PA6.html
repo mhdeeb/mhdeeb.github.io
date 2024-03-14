@@ -18,22 +18,80 @@
         }
       }
     </script>
-
     <!-- this script tag is used to import the dat.gui library -->
+
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+      }
+
+      .progress-bar-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+      }
+
+      #progress-bar {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 50%;
+      }
+
+      label {
+        position: absolute;
+        top: 55%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+      }
+    </style>
   </head>
-  <body style="margin: 0; display: flex">
+  <body>
+    <div class="progress-bar-container">
+      <label id="progress-label" for="progress-bar">Loading...</label>
+      <progress id="progress-bar" value="0" max="100"></progress>
+    </div>
+    <canvas id="canvas"></canvas>
     <script type="module">
       import * as THREE from "three";
       import Stats from "https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js";
       import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/controls/OrbitControls.js";
       // import the necessary modules from the three.js library
 
+      const progressBar = document.getElementById("progress-bar");
+      const progressLabel = document.getElementById("progress-label");
+
+      const loadingManager = new THREE.LoadingManager();
+
+      loadingManager.onLoad = function () {
+        document.querySelector(".progress-bar-container").style.display =
+          "none";
+      };
+
+      loadingManager.onProgress = function (url, itemsLoaded, itemsTotal) {
+        progressBar.value = (itemsLoaded / itemsTotal) * 100;
+        progressLabel.textContent = `Loading file: ${url}. Loaded ${itemsLoaded} of ${itemsTotal} files.`;
+      };
+
+      loadingManager.onError = function (url) {
+        console.log("There was an error loading " + url);
+      };
+
       const gui = new dat.GUI();
 
       let width = window.innerWidth;
       let height = window.innerHeight;
 
-      let renderer = new THREE.WebGLRenderer({ antialias: true }); // antialiasing is a technique used to improve the quality of the image produced by the renderer
+      let canvas = document.getElementById("canvas"); // get the canvas element from the document
+
+      let renderer = new THREE.WebGLRenderer({ antialias: true, canvas }); // antialiasing is a technique used to improve the quality of the image produced by the renderer
 
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap; // default
@@ -42,7 +100,6 @@
 
       renderer.setSize(width, height); // set the size of the renderer to the size of the window
 
-      document.body.appendChild(renderer.domElement); // add the renderer to the body of the document
       const stats = new Stats(); // create a stats object
       document.body.appendChild(stats.dom); // add the stats object to the body of the document
       let fov = 45;
@@ -88,6 +145,8 @@
 
       scene.add(camera);
 
+      const textureLoader = new THREE.TextureLoader(loadingManager);
+
       // ==========================================================
       // ======================== Relevant Code ===================
       // ==========================================================
@@ -125,34 +184,32 @@
 
       // ===================== SUN =====================
 
-      let sun_texture = new THREE.TextureLoader().load(
-        "https://upload.wikimedia.org/wikipedia/commons/9/99/Map_of_the_full_sun.jpg"
-      ); // load the texture for the sun
-
       let sun_geometry = new THREE.SphereGeometry(10, 64, 64); // create a sphere geometry for the sun
 
-      let sun_material = new THREE.MeshBasicMaterial({
-        map: sun_texture,
-      }); // create a material for the sun
+      let sun_material = new THREE.MeshBasicMaterial(); // create a material for the sun
 
       let sun_mesh = new THREE.Mesh(sun_geometry, sun_material); // create a mesh for the sun
 
-      sun.add(sun_mesh); // add the light source to the sun
+      sun.add(sun_mesh);
+
+      textureLoader.load(
+        "https://upload.wikimedia.org/wikipedia/commons/9/99/Map_of_the_full_sun.jpg",
+        function (texture) {
+          sun_material.map = texture;
+
+          sun_material.needsUpdate = true;
+        }
+      ); // load the texture for the sun
 
       // ========================== EARTH =========================
 
-      let earth_texture = new THREE.TextureLoader().load(
-        "https://upload.wikimedia.org/wikipedia/commons/c/cf/WorldMap-A_non-Frame.png"
-      ); // load the texture for the earth
+      let earth_material = new THREE.MeshPhongMaterial({
+        shininess: 100,
+      });
 
       let earth_geometry = new THREE.SphereGeometry(4, 64, 64); // create a sphere geometry for the earth
 
-      let earth_material = new THREE.MeshPhongMaterial({
-        map: earth_texture,
-        shininess: 100,
-      }); // create a material for the earth
-
-      let earth = new THREE.Mesh(earth_geometry, earth_material); // create a mesh for the earth
+      var earth = new THREE.Mesh(earth_geometry, earth_material); // create a mesh for the earth
 
       earth.castShadow = true; // enable shadow casting
       earth.receiveShadow = true; // enable shadow receiving
@@ -161,22 +218,26 @@
 
       sun.add(earth); // add the earth to the scene
 
-      sun.target = earth;
+      sun.target = earth; // set the target of the light source to the earth
+
+      textureLoader.load(
+        "https://upload.wikimedia.org/wikipedia/commons/c/cf/WorldMap-A_non-Frame.png",
+        function (texture) {
+          earth_material.map = texture;
+
+          earth_material.needsUpdate = true;
+        }
+      ); // load the texture for the earth
 
       // ========================== MOON ==========================
 
-      let moon_texture = new THREE.TextureLoader().load(
-        "https://upload.wikimedia.org/wikipedia/commons/d/db/Moonmap_from_clementine_data.png"
-      ); // load the texture for the moon
+      let moon_material = new THREE.MeshPhongMaterial({
+        shininess: 100,
+      });
 
       let moon_geometry = new THREE.SphereGeometry(1, 64, 64); // create a sphere geometry for the moon
 
-      let moon_material = new THREE.MeshPhongMaterial({
-        map: moon_texture,
-        shininess: 100,
-      }); // create a material for the moon
-
-      let moon = new THREE.Mesh(moon_geometry, moon_material); // create a mesh for the moon
+      var moon = new THREE.Mesh(moon_geometry, moon_material); // create a mesh for the moon
 
       moon.castShadow = true; // enable shadow casting
       moon.receiveShadow = true; // enable shadow receiving
@@ -185,24 +246,37 @@
 
       earth.add(moon); // add the moon to the scene
 
+      textureLoader.load(
+        "https://upload.wikimedia.org/wikipedia/commons/d/db/Moonmap_from_clementine_data.png",
+        function (texture) {
+          moon_material.map = texture;
+
+          moon_material.needsUpdate = true;
+        }
+      ); // load the texture for the moon
+
       // ==========================================================
 
       // ========================== Sky ===========================
 
-      let sky_texture = new THREE.TextureLoader().load(
-        "https://mhdeeb.github.io/img/hiptyc_2020_4k.png"
-      ); // load the texture for the sky
-
-      let sky_geometry = new THREE.SphereGeometry(1000, 128, 128); // create a sphere geometry for the sky
-
       let sky_material = new THREE.MeshBasicMaterial({
-        map: sky_texture,
         side: THREE.BackSide,
       }); // create a material for the sky
 
-      let sky = new THREE.Mesh(sky_geometry, sky_material); // create a mesh for the sky
+      let sky_geometry = new THREE.SphereGeometry(1000, 128, 128); // create a sphere geometry for the sky
+
+      var sky = new THREE.Mesh(sky_geometry, sky_material); // create a mesh for the sky
 
       scene.add(sky); // add the sky to the scene
+
+      textureLoader.load(
+        "https://mhdeeb.github.io/img/hiptyc_2020_4k.png",
+        function (texture) {
+          sky_material.map = texture;
+
+          sky.material.needsUpdate = true;
+        }
+      ); // load the texture for the sky
 
       // ========================= SETTINGS =======================
 
@@ -216,13 +290,13 @@
         },
       }; // create a settings object
 
-      gui.add(settings, "speed", 0, 100).name("Speed Multiplier"); // add a slider to the gui to control the speed of the sun's rotation
+      gui.add(settings, "speed", 0, 20).name("Speed Multiplier"); // add a slider to the gui to control the speed of the sun's rotation
       gui.add(settings, "reset").name("Reset"); // add a button to the gui to reset the settings
 
       // ==========================================================
 
       function update() {
-        const earth_rotation_speed = (settings.speed * 2 * Math.PI) / 30;
+        const earth_rotation_speed = (settings.speed * 2 * Math.PI) / 60;
         const earth_orbit_speed = earth_rotation_speed / 365;
         const moon_rotation_speed = earth_rotation_speed / 30;
         const moon_orbit_speed = moon_rotation_speed;
