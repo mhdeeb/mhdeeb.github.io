@@ -57,6 +57,9 @@
       camera.position.x = 150;
       camera.position.y = 50;
 
+      camera.position.x /= 1.2;
+      camera.position.y /= 1.2;
+
       camera.position.applyMatrix4(
         new THREE.Matrix4().makeRotationY(-Math.PI / 8)
       );
@@ -207,7 +210,7 @@
         speed: 1,
         reset: function () {
           settings.speed = 1;
-          earth.position.set(50, 0, 0);
+          earth.position.set(0, 0, -50);
           moon.position.set(0, 0, 10);
           controls.reset();
         },
