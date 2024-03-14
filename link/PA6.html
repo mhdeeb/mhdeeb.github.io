@@ -46,12 +46,14 @@
       const stats = new Stats(); // create a stats object
       document.body.appendChild(stats.dom); // add the stats object to the body of the document
       let fov = 45;
-      let camera = new THREE.PerspectiveCamera(fov, width / height, 1, 200); // create a perspective camera with a 45 degree field of view, an aspect ratio of the window's aspect ratio, a near clipping plane of 1, and a far clipping plane of 100
+      let camera = new THREE.PerspectiveCamera(fov, width / height, 1, 2000); // create a perspective camera with a 45 degree field of view, an aspect ratio of the window's aspect ratio, a near clipping plane of 1, and a far clipping plane of 100
 
-      let distance = 30;
+      let controls = new OrbitControls(camera, renderer.domElement);
+
+      let distance = 40;
       let boundingHeight = Math.tan((fov * (Math.PI / 180)) / 2) * distance;
       let boundingWidth = boundingHeight * (width / height);
-      camera.position.set(0, 15, distance);
+      camera.position.set(-70, 40, distance);
 
       camera.lookAt(0, 0, 0);
 
@@ -107,10 +109,24 @@
 
       scene.add(sun); // add the light source to the scene
 
-      sun.position.set(100, 0, 0); // set the position of the light source to the upper left corner
-
       // let ambient = new THREE.AmbientLight(0x404040);
       // scene.add(ambient);
+
+      // ===================== SUN =====================
+
+      let sun_texture = new THREE.TextureLoader().load(
+        "https://upload.wikimedia.org/wikipedia/commons/9/99/Map_of_the_full_sun.jpg"
+      ); // load the texture for the sun
+
+      let sun_geometry = new THREE.SphereGeometry(10, 64, 64); // create a sphere geometry for the sun
+
+      let sun_material = new THREE.MeshBasicMaterial({
+        map: sun_texture,
+      }); // create a material for the sun
+
+      let sun_mesh = new THREE.Mesh(sun_geometry, sun_material); // create a mesh for the sun
+
+      sun.add(sun_mesh); // add the light source to the sun
 
       // ========================== EARTH =========================
 
@@ -130,7 +146,11 @@
       earth.castShadow = true; // enable shadow casting
       earth.receiveShadow = true; // enable shadow receiving
 
-      scene.add(earth); // add the earth to the scene
+      earth.position.set(50, 0, 0); // set the position of the earth
+
+      sun.add(earth); // add the earth to the scene
+
+      sun.target = earth;
 
       // ========================== MOON ==========================
 
@@ -150,52 +170,53 @@
       moon.castShadow = true; // enable shadow casting
       moon.receiveShadow = true; // enable shadow receiving
 
-      moon.position.set(10, 0, 0); // set the position of the moon
+      moon.position.set(0, 0, 10); // set the position of the moon
 
-      scene.add(moon); // add the moon to the scene
-
-      // ===================== SUN =====================
-
-      let sun_texture = new THREE.TextureLoader().load(
-        "https://upload.wikimedia.org/wikipedia/commons/9/99/Map_of_the_full_sun.jpg"
-      ); // load the texture for the sun
-
-      let sun_geometry = new THREE.SphereGeometry(10, 64, 64); // create a sphere geometry for the sun
-
-      let sun_material = new THREE.MeshBasicMaterial({
-        map: sun_texture,
-      }); // create a material for the sun
-
-      let sun_mesh = new THREE.Mesh(sun_geometry, sun_material); // create a mesh for the sun
-
-      sun.add(sun_mesh); // add the light source to the sun
+      earth.add(moon); // add the moon to the scene
 
       // ==========================================================
+
+      // ========================== Sky ===========================
+
+      let sky_texture = new THREE.TextureLoader().load(
+        "https://mhdeeb.github.io/img/hiptyc_2020_4k.png"
+      ); // load the texture for the sky
+
+      let sky_geometry = new THREE.SphereGeometry(1000, 128, 128); // create a sphere geometry for the sky
+
+      let sky_material = new THREE.MeshBasicMaterial({
+        map: sky_texture,
+        side: THREE.BackSide,
+      }); // create a material for the sky
+
+      let sky = new THREE.Mesh(sky_geometry, sky_material); // create a mesh for the sky
+
+      scene.add(sky); // add the sky to the scene
 
       // ========================= SETTINGS =======================
 
       let settings = {
-        sun_rotation: true,
         speed: 1,
         reset: function () {
-          settings.sun_rotation = true;
           settings.speed = 1;
-          sun.position.set(100, 0, 0);
-          moon.position.set(10, 0, 0);
+          earth.position.set(50, 0, 0);
+          moon.position.set(0, 0, 10);
+          camera.position.set(-70, 40, distance);
+          camera.lookAt(0, 0, 0);
         },
       }; // create a settings object
 
-      gui.add(settings, "sun_rotation").name("Sun Rotation"); // add a checkbox to the gui to enable/disable the sun's rotation
-      gui.add(settings, "speed", 0, 10).name("Speed Multiplier"); // add a slider to the gui to control the speed of the sun's rotation
+      gui.add(settings, "speed", 0, 100).name("Speed Multiplier"); // add a slider to the gui to control the speed of the sun's rotation
       gui.add(settings, "reset").name("Reset"); // add a button to the gui to reset the settings
 
       // ==========================================================
 
       function update() {
-        const earth_rotation_speed = (settings.speed * Math.PI) / 60;
+        const earth_rotation_speed = settings.speed * 2 * Math.PI / 60;
+        const earth_orbit_speed = earth_rotation_speed / 365;
         const moon_rotation_speed = earth_rotation_speed / 30;
         const moon_orbit_speed = moon_rotation_speed;
-        const sun_rotation_speed = earth_rotation_speed / 365;
+        const sun_rotation_speed = earth_rotation_speed / 28;
 
         // rotate the earth on its axis of angle of 23.5 degrees
         earth.geometry.applyMatrix4(
@@ -218,13 +239,13 @@
           new THREE.Matrix4().makeRotationY(moon_orbit_speed)
         );
 
-        // rotate the light source
+        // rotate the earth in an orbit around the sun
 
-        if (settings.sun_rotation) {
-          sun.position.applyMatrix4(
-            new THREE.Matrix4().makeRotationY(sun_rotation_speed)
-          );
-        }
+        earth.position.applyMatrix4(
+          new THREE.Matrix4().makeRotationY(earth_orbit_speed)
+        );
+
+        sun_mesh.rotateOnAxis(new THREE.Vector3(0, 1, 0), sun_rotation_speed);
       }
 
       // ==========================================================
