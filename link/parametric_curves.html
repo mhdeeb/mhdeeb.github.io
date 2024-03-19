@@ -236,6 +236,10 @@
       // ========================= SETTINGS =======================
       const t_limit = 60;
 
+      var previous_x = "sin(p * 2) * cos(p * (t - 1))";
+      var previous_y = "sin(p) * sin(p * t)";
+      var previous_z = "0";
+
       var current_x = "sin(p * 2) * cos(p * (t - 1))";
       var current_y = "sin(p) * sin(p * t)";
       var current_z = "0";
@@ -252,10 +256,35 @@
           settings.animate = false;
           settings.time = t_limit;
           settings.speed_multiplier = 1;
-          parametric_curve.mesh.geometry = parametric_curve.construct_geometry(
-            settings.time
-          );
-          parametric_curve.mesh.geometry.needsUpdate = true;
+          try {
+            parametric_curve.mesh.geometry =
+              parametric_curve.construct_geometry(settings.time);
+            parametric_curve.mesh.geometry.needsUpdate = true;
+          } catch (e) {
+            current_x = previous_x;
+            current_y = previous_y;
+            current_z = previous_z;
+            settings.x_fn = previous_x;
+            settings.y_fn = previous_y;
+            settings.z_fn = previous_z;
+            try {
+              parametric_curve.f.x = Parser.parse(settings.x_fn).toJSFunction([
+                "p",
+                "t",
+              ]);
+              parametric_curve.f.y = Parser.parse(settings.y_fn).toJSFunction([
+                "p",
+                "t",
+              ]);
+              parametric_curve.f.z = Parser.parse(settings.z_fn).toJSFunction([
+                "p",
+                "t",
+              ]);
+              parametric_curve.mesh.geometry =
+                parametric_curve.construct_geometry(settings.time);
+              parametric_curve.mesh.geometry.needsUpdate = true;
+            } catch (e) {}
+          }
         },
       };
       const functions = gui.addFolder("Function");
@@ -271,9 +300,11 @@
             parametric_curve.mesh.geometry =
               parametric_curve.construct_geometry(settings.time);
             parametric_curve.mesh.geometry.needsUpdate = true;
+            previous_x = current_x;
             current_x = settings.x_fn;
           } catch (e) {
-            settings.x_fn = current_x;
+            current_x = previous_x;
+            settings.x_fn = previous_x;
           }
         });
       functions
@@ -288,9 +319,11 @@
             parametric_curve.mesh.geometry =
               parametric_curve.construct_geometry(settings.time);
             parametric_curve.mesh.geometry.needsUpdate = true;
+            previous_y = current_y;
             current_y = settings.y_fn;
           } catch (e) {
-            settings.y_fn = current_y;
+            current_y = previous_y;
+            settings.y_fn = previous_y;
           }
         });
       functions
@@ -305,8 +338,10 @@
             parametric_curve.mesh.geometry =
               parametric_curve.construct_geometry(settings.time);
             parametric_curve.mesh.geometry.needsUpdate = true;
+            previous_z = current_z;
             current_z = settings.z_fn;
           } catch (e) {
+            current_z = previous_z;
             settings.z_fn = current_z;
           }
         });
@@ -320,10 +355,35 @@
         .add(settings, "time", 0, t_limit, 0.01)
         .name("Time")
         .onChange(() => {
-          parametric_curve.mesh.geometry = parametric_curve.construct_geometry(
-            settings.time
-          );
-          parametric_curve.mesh.geometry.needsUpdate = true;
+          try {
+            parametric_curve.mesh.geometry =
+              parametric_curve.construct_geometry(settings.time);
+            parametric_curve.mesh.geometry.needsUpdate = true;
+          } catch (e) {
+            current_x = previous_x;
+            current_y = previous_y;
+            current_z = previous_z;
+            settings.x_fn = previous_x;
+            settings.y_fn = previous_y;
+            settings.z_fn = previous_z;
+            try {
+              parametric_curve.f.x = Parser.parse(settings.x_fn).toJSFunction([
+                "p",
+                "t",
+              ]);
+              parametric_curve.f.y = Parser.parse(settings.y_fn).toJSFunction([
+                "p",
+                "t",
+              ]);
+              parametric_curve.f.z = Parser.parse(settings.z_fn).toJSFunction([
+                "p",
+                "t",
+              ]);
+              parametric_curve.mesh.geometry =
+                parametric_curve.construct_geometry(settings.time);
+              parametric_curve.mesh.geometry.needsUpdate = true;
+            } catch (e) {}
+          }
         });
       animation.add(settings, "reset").name("Reset");
       animation.open();
@@ -345,10 +405,35 @@
 
       function render() {
         if (settings.animate) {
-          parametric_curve.mesh.geometry = parametric_curve.construct_geometry(
-            settings.time
-          );
-          parametric_curve.mesh.geometry.needsUpdate = true;
+          try {
+            parametric_curve.mesh.geometry =
+              parametric_curve.construct_geometry(settings.time);
+            parametric_curve.mesh.geometry.needsUpdate = true;
+          } catch (e) {
+            current_x = previous_x;
+            current_y = previous_y;
+            current_z = previous_z;
+            settings.x_fn = previous_x;
+            settings.y_fn = previous_y;
+            settings.z_fn = previous_z;
+            try {
+              parametric_curve.f.x = Parser.parse(settings.x_fn).toJSFunction([
+                "p",
+                "t",
+              ]);
+              parametric_curve.f.y = Parser.parse(settings.y_fn).toJSFunction([
+                "p",
+                "t",
+              ]);
+              parametric_curve.f.z = Parser.parse(settings.z_fn).toJSFunction([
+                "p",
+                "t",
+              ]);
+              parametric_curve.mesh.geometry =
+                parametric_curve.construct_geometry(settings.time);
+              parametric_curve.mesh.geometry.needsUpdate = true;
+            } catch (e) {}
+          }
         }
         renderer.render(scene, camera);
       }
