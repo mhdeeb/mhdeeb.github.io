@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
+    />
+    <title>Parametric graphs</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.min.js"
+        }
+      }
+    </script>
+
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+      }
+
+      .progress-bar-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+      }
+
+      #progress-bar {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 50%;
+      }
+
+      label {
+        position: absolute;
+        top: 55%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="progress-bar-container">
+      <label id="progress-label" for="progress-bar">Loading...</label>
+      <progress id="progress-bar" value="0" max="100"></progress>
+    </div>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+      import * as THREE from "three";
+      import Stats from "https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js";
+      import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/controls/OrbitControls.js";
+
+      const progressBar = document.getElementById("progress-bar");
+      const progressLabel = document.getElementById("progress-label");
+
+      const loadingManager = new THREE.LoadingManager();
+
+      loadingManager.onLoad = function () {
+        document.querySelector(".progress-bar-container").style.display =
+          "none";
+      };
+
+      loadingManager.onProgress = function (url, itemsLoaded, itemsTotal) {
+        progressBar.value = (itemsLoaded / itemsTotal) * 100;
+        progressLabel.textContent = `Loaded ${itemsLoaded} of ${itemsTotal} files.`;
+      };
+
+      loadingManager.onError = function (url) {
+        console.log("There was an error loading " + url);
+      };
+
+      const gui = new dat.GUI();
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      let canvas = document.getElementById("canvas");
+
+      let renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
+
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      renderer.setSize(width, height);
+
+      const stats = new Stats();
+      document.body.appendChild(stats.dom);
+      let fov = 45;
+      let camera = new THREE.PerspectiveCamera(fov, width / height, 1, 100);
+
+      camera.position.set(0, 0, 3);
+
+      let controls = new OrbitControls(camera, renderer.domElement);
+
+      let distance = 70;
+      let boundingHeight = Math.tan((fov * (Math.PI / 180)) / 2) * distance;
+      let boundingWidth = boundingHeight * (width / height);
+
+      controls.saveState();
+
+      window.addEventListener("resize", () => {
+        width = window.innerWidth;
+        height = window.innerHeight;
+
+        boundingHeight = Math.tan((fov * (Math.PI / 180)) / 2) * distance;
+        boundingWidth = boundingHeight * (width / height);
+
+        camera.aspect = width / height;
+
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(width, height);
+      });
+
+      let scene = new THREE.Scene();
+
+      scene.background = new THREE.Color("#000");
+
+      scene.add(camera);
+
+      const textureLoader = new THREE.TextureLoader(loadingManager);
+      textureLoader.load();
+
+      // ==========================================================
+      // ======================== Relevant Code ===================
+      // ==========================================================
+
+      let material = new THREE.ShaderMaterial({
+        uniforms: {},
+        vertexShader: `
+            varying vec3 pos;
+
+            void main() {
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
+
+              pos = position;
+            }
+            `,
+        fragmentShader: `
+            varying vec3 pos;
+
+            const float PI = 3.1415926535897932384626433832795;
+
+            vec3 hsv2rgb(vec3 c) {
+                vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+                return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+            }
+
+            void main() {
+              vec3 vPos = (pos + 1.) * .5;
+
+              float dist = distance(pos, vec3(0., 0., 0.));
+              gl_FragColor = vec4(hsv2rgb(vec3(dist, 1., 1.)), 1.);
+            }
+            `,
+      });
+
+      class ParametricCurve {
+        constructor({ f, range, material }, ...params) {
+          this.f = f;
+          this.range = range;
+          this.mesh = new THREE.Line(this.construct_geometry(params), material);
+        }
+
+        construct_geometry(params) {
+          let points = new Array(this.range.steps);
+          let steps = (this.range.end - this.range.start) / this.range.steps;
+
+          let curve = null;
+
+          for (
+            let t = this.range.start, i = 0;
+            t <= this.range.end;
+            t += steps, i++
+          ) {
+            let point = new THREE.Vector3();
+            for (let dim in this.f)
+              if (this.f[dim] && Object.hasOwn(point, dim))
+                point[dim] = this.f[dim](t, params);
+            points[i] = point;
+          }
+
+          if (Object.keys(this.f).length === 2)
+            curve = new THREE.SplineCurve(points);
+          else if (Object.keys(this.f).length === 3)
+            curve = new THREE.CatmullRomCurve3(points);
+
+          let geometry = new THREE.BufferGeometry().setFromPoints(
+            curve.getPoints(4000)
+          );
+
+          return geometry;
+        }
+      }
+
+      let petal = new ParametricCurve(
+        {
+          f: {
+            x: function (theta, t) {
+              return Math.sin(theta * 2) * Math.cos(theta * (t - 1));
+            },
+            y: function (theta, t) {
+              return Math.sin(theta) * Math.sin(theta * t);
+            },
+          },
+          range: { start: 0, end: 2 * Math.PI, steps: 4000 },
+          material: material,
+        },
+        4
+      );
+
+      scene.add(petal.mesh);
+
+      // function ParametricCurveGeometry(x, y, range) {
+      //   let points = new Array(range.steps);
+      //   range.steps = (range.end - range.start) / range.steps;
+      //   for (let t = range.start, i = 0; t <= range.end; t += range.steps)
+      //     points[i++] = new THREE.Vector2(x(t), y(t));
+      //   const curve = new THREE.SplineCurve(points);
+      //   return new THREE.BufferGeometry().setFromPoints(curve.getPoints(4000));
+      // }
+
+      // function ParametricCurveGeometry3(x, y, z, range) {
+      //   let points = new Array(range.steps);
+      //   range.steps = (range.end - range.start) / range.steps;
+      //   for (let t = range.start, i = 0; t <= range.end; t += range.steps)
+      //     points[i++] = new THREE.Vector3(x(t), y(t), z(t));
+      //   const curve = new THREE.CatmullRomCurve3(points);
+      //   return new THREE.BufferGeometry().setFromPoints(curve.getPoints(4000));
+      // }
+
+      // for (let contour in ParametricEquations) {
+      //   let geometry = null;
+      //   if (Object.hasOwn(ParametricEquations[contour], "z")) {
+      //     geometry = ParametricCurveGeometry3(
+      //       ParametricEquations[contour].x,
+      //       ParametricEquations[contour].y,
+      //       ParametricEquations[contour].z,
+      //       ParametricEquations[contour].range
+      //     );
+      //   } else {
+      //     geometry = ParametricCurveGeometry(
+      //       ParametricEquations[contour].x,
+      //       ParametricEquations[contour].y,
+      //       ParametricEquations[contour].range
+      //     );
+      //   }
+
+      //   var pos = geometry.getAttribute("position");
+
+      //   ParametricEquations[contour].mesh = new THREE.Line(geometry, material);
+
+      //   scene.add(ParametricEquations[contour].mesh);
+      // }
+      // ==========================================================
+
+      // ========================= SETTINGS =======================
+      const t_limit = 50;
+
+      let settings = {
+        animate: false,
+        time: t_limit,
+        speed: 0.02,
+        reset: function () {
+          controls.reset();
+          settings.time = 0;
+          settings.animate = false;
+          settings.speed = 0.02;
+        },
+      };
+
+      gui.add(settings, "animate").name("Animate");
+      gui.add(settings, "speed", 0.01, 0.1, 0.01).name("Speed");
+      gui.add(settings, "time", 0, t_limit, 0.01).name("Time");
+      gui.add(settings, "reset").name("Reset");
+
+      // ==========================================================
+
+      function update() {
+        if (settings.animate) {
+          if (settings.time > t_limit) settings.time = 0;
+          settings.time += settings.speed;
+        }
+        gui.updateDisplay();
+        stats.update();
+      }
+
+      // ==========================================================
+      // ======================== End Relevant Code ===============
+      // ==========================================================
+
+      function render() {
+        petal.mesh.geometry = petal.construct_geometry(settings.time);
+        petal.mesh.geometry.needsUpdate = true;
+        renderer.render(scene, camera);
+      }
+
+      function animate() {
+        render();
+        update();
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    </script>
+  </body>
+</html>
