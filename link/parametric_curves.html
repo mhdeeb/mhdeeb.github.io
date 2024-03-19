@@ -222,7 +222,7 @@
               return sin(theta) * sin(theta * t);
             },
           },
-          range: { start: 0, end: 2 * PI, steps: 4000 },
+          range: { start: 0, end: 2 * PI, steps: 1000 },
           material: material,
         },
         4
@@ -232,27 +232,33 @@
       // ==========================================================
 
       // ========================= SETTINGS =======================
-      const t_limit = 50;
+      const t_limit = 60;
 
       let settings = {
+        x_fn: "sin(p * 2) * cos(p * (t - 1))",
+        y_fn: "sin(p) * sin(p * t)",
+        z_fn: "0",
         animate: false,
         time: t_limit,
-        speed_multiplier: 2,
+        speed_multiplier: 1,
         reset: function () {
           controls.reset();
           settings.animate = false;
           settings.time = t_limit;
-          settings.speed_multiplier = 2;
+          settings.speed_multiplier = 1;
         },
       };
-      const g1 = gui.addFolder("Petal");
-      g1.add(settings, "animate").name("Animate");
-      g1.add(settings, "speed_multiplier", 0, 10, 0.01).name(
-        "Speed Multiplier"
-      );
-      g1.add(settings, "time", 0, t_limit, 0.01).name("Time");
-      g1.add(settings, "reset").name("Reset");
-      g1.open();
+      const functions = gui.addFolder("Function");
+      functions.add(settings, "x_fn").name("X(p, t)");
+      functions.add(settings, "y_fn").name("Y(p, t)");
+      functions.add(settings, "z_fn").name("Z(p, t)");
+      const color = gui.addFolder("Color (WIP)");
+      gui.add(settings, "animate").name("Animate");
+      gui
+        .add(settings, "speed_multiplier", 0, 10, 0.01)
+        .name("Speed Multiplier");
+      gui.add(settings, "time", 0, t_limit, 0.01).name("Time");
+      gui.add(settings, "reset").name("Reset");
 
       // ==========================================================
 
