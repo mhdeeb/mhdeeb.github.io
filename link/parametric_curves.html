@@ -179,6 +179,7 @@
         }
 
         construct_geometry(params) {
+          if (this.mesh && this.mesh.geometry) this.mesh.geometry.dispose();
           let points = new Array(this.range.steps);
           let steps = (this.range.end - this.range.start) / this.range.steps;
 
@@ -251,6 +252,10 @@
           settings.animate = false;
           settings.time = t_limit;
           settings.speed_multiplier = 1;
+          parametric_curve.mesh.geometry = parametric_curve.construct_geometry(
+            settings.time
+          );
+          parametric_curve.mesh.geometry.needsUpdate = true;
         },
       };
       const functions = gui.addFolder("Function");
