@@ -59,6 +59,7 @@
       import * as THREE from "three";
       import Stats from "https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js";
       import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/controls/OrbitControls.js";
+      import { Parser } from "https://cdn.jsdelivr.net/npm/expr-eval@2.0.2/+esm";
 
       const progressBar = document.getElementById("progress-bar");
       const progressLabel = document.getElementById("progress-label");
@@ -212,7 +213,7 @@
       const cos = Math.cos;
       const PI = Math.PI;
 
-      let petal = new ParametricCurve(
+      let parametric_curve = new ParametricCurve(
         {
           f: {
             x: function (theta, t) {
@@ -222,23 +223,27 @@
               return sin(theta) * sin(theta * t);
             },
           },
-          range: { start: 0, end: 2 * PI, steps: 1000 },
+          range: { start: 0, end: 2 * PI, steps: 2000 },
           material: material,
         },
         4
       );
 
-      scene.add(petal.mesh);
+      scene.add(parametric_curve.mesh);
       // ==========================================================
 
       // ========================= SETTINGS =======================
       const t_limit = 60;
 
+      var current_x = "sin(p * 2) * cos(p * (t - 1))";
+      var current_y = "sin(p) * sin(p * t)";
+      var current_z = "0";
+
       let settings = {
-        x_fn: "sin(p * 2) * cos(p * (t - 1))",
-        y_fn: "sin(p) * sin(p * t)",
-        z_fn: "0",
-        animate: false,
+        x_fn: current_x,
+        y_fn: current_y,
+        z_fn: current_z,
+        animate: true,
         time: t_limit,
         speed_multiplier: 1,
         reset: function () {
@@ -249,23 +254,79 @@
         },
       };
       const functions = gui.addFolder("Function");
-      functions.add(settings, "x_fn").name("X(p, t)");
-      functions.add(settings, "y_fn").name("Y(p, t)");
-      functions.add(settings, "z_fn").name("Z(p, t)");
+      functions
+        .add(settings, "x_fn")
+        .name("X(p, t)")
+        .onFinishChange(() => {
+          try {
+            parametric_curve.f.x = Parser.parse(settings.x_fn).toJSFunction([
+              "p",
+              "t",
+            ]);
+            parametric_curve.mesh.geometry =
+              parametric_curve.construct_geometry(settings.time);
+            parametric_curve.mesh.geometry.needsUpdate = true;
+            current_x = settings.x_fn;
+          } catch (e) {
+            settings.x_fn = current_x;
+          }
+        });
+      functions
+        .add(settings, "y_fn")
+        .name("Y(p, t)")
+        .onFinishChange(() => {
+          try {
+            parametric_curve.f.y = Parser.parse(settings.y_fn).toJSFunction([
+              "p",
+              "t",
+            ]);
+            parametric_curve.mesh.geometry =
+              parametric_curve.construct_geometry(settings.time);
+            parametric_curve.mesh.geometry.needsUpdate = true;
+            current_y = settings.y_fn;
+          } catch (e) {
+            settings.y_fn = current_y;
+          }
+        });
+      functions
+        .add(settings, "z_fn")
+        .name("Z(p, t)")
+        .onFinishChange(() => {
+          try {
+            parametric_curve.f.z = Parser.parse(settings.z_fn).toJSFunction([
+              "p",
+              "t",
+            ]);
+            parametric_curve.mesh.geometry =
+              parametric_curve.construct_geometry(settings.time);
+            parametric_curve.mesh.geometry.needsUpdate = true;
+            current_z = settings.z_fn;
+          } catch (e) {
+            settings.z_fn = current_z;
+          }
+        });
       const color = gui.addFolder("Color (WIP)");
       gui.add(settings, "animate").name("Animate");
       gui
         .add(settings, "speed_multiplier", 0, 10, 0.01)
         .name("Speed Multiplier");
-      gui.add(settings, "time", 0, t_limit, 0.01).name("Time");
+      gui
+        .add(settings, "time", 0, t_limit, 0.01)
+        .name("Time")
+        .onChange(() => {
+          parametric_curve.mesh.geometry = parametric_curve.construct_geometry(
+            settings.time
+          );
+          parametric_curve.mesh.geometry.needsUpdate = true;
+        });
       gui.add(settings, "reset").name("Reset");
 
       // ==========================================================
 
       function update(delta) {
         if (settings.animate) {
-          if (settings.time > t_limit) settings.time = 0;
           settings.time += delta * settings.speed_multiplier;
+          if (settings.time > t_limit) settings.time = 0;
         }
         gui.updateDisplay();
         stats.update();
@@ -276,8 +337,12 @@
       // ==========================================================
 
       function render() {
-        petal.mesh.geometry = petal.construct_geometry(settings.time);
-        petal.mesh.geometry.needsUpdate = true;
+        if (settings.animate) {
+          parametric_curve.mesh.geometry = parametric_curve.construct_geometry(
+            settings.time
+          );
+          parametric_curve.mesh.geometry.needsUpdate = true;
+        }
         renderer.render(scene, camera);
       }
 
