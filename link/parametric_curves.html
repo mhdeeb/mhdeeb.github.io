@@ -210,24 +210,20 @@
         }
       }
 
-      const sin = Math.sin;
-      const cos = Math.cos;
-      const PI = Math.PI;
-
       let parametric_curve = new ParametricCurve(
         {
           f: {
             x: function (theta, t) {
-              return sin(theta * 2) * cos(theta * (t - 1));
+              return Math.sin(theta * 2) * Math.cos(theta * (t - 1));
             },
             y: function (theta, t) {
-              return sin(theta) * sin(theta * t);
+              return Math.sin(theta) * Math.sin(theta * t);
             },
           },
-          range: { start: 0, end: 2 * PI, steps: 2000 },
+          range: { start: 0, end: 2 * Math.PI, steps: 2000 },
           material: material,
         },
-        4
+        1
       );
 
       scene.add(parametric_curve.mesh);
@@ -240,9 +236,9 @@
       var previous_y = "sin(p) * sin(p * t)";
       var previous_z = "0";
 
-      var current_x = "sin(p * 2) * cos(p * (t - 1))";
-      var current_y = "sin(p) * sin(p * t)";
-      var current_z = "0";
+      var current_x = previous_x;
+      var current_y = previous_y;
+      var current_z = previous_z;
 
       let settings = {
         x_fn: current_x,
@@ -256,35 +252,10 @@
           settings.animate = false;
           settings.time = t_limit;
           settings.speed_multiplier = 1;
-          try {
-            parametric_curve.mesh.geometry =
-              parametric_curve.construct_geometry(settings.time);
-            parametric_curve.mesh.geometry.needsUpdate = true;
-          } catch (e) {
-            current_x = previous_x;
-            current_y = previous_y;
-            current_z = previous_z;
-            settings.x_fn = previous_x;
-            settings.y_fn = previous_y;
-            settings.z_fn = previous_z;
-            try {
-              parametric_curve.f.x = Parser.parse(settings.x_fn).toJSFunction([
-                "p",
-                "t",
-              ]);
-              parametric_curve.f.y = Parser.parse(settings.y_fn).toJSFunction([
-                "p",
-                "t",
-              ]);
-              parametric_curve.f.z = Parser.parse(settings.z_fn).toJSFunction([
-                "p",
-                "t",
-              ]);
-              parametric_curve.mesh.geometry =
-                parametric_curve.construct_geometry(settings.time);
-              parametric_curve.mesh.geometry.needsUpdate = true;
-            } catch (e) {}
-          }
+          parametric_curve.mesh.geometry = parametric_curve.construct_geometry(
+            settings.time
+          );
+          parametric_curve.mesh.geometry.needsUpdate = true;
         },
       };
       const functions = gui.addFolder("Function");
@@ -303,8 +274,7 @@
             previous_x = current_x;
             current_x = settings.x_fn;
           } catch (e) {
-            current_x = previous_x;
-            settings.x_fn = previous_x;
+            settings.x_fn = current_x;
           }
         });
       functions
@@ -322,7 +292,6 @@
             previous_y = current_y;
             current_y = settings.y_fn;
           } catch (e) {
-            current_y = previous_y;
             settings.y_fn = previous_y;
           }
         });
@@ -341,7 +310,6 @@
             previous_z = current_z;
             current_z = settings.z_fn;
           } catch (e) {
-            current_z = previous_z;
             settings.z_fn = current_z;
           }
         });
@@ -359,31 +327,7 @@
             parametric_curve.mesh.geometry =
               parametric_curve.construct_geometry(settings.time);
             parametric_curve.mesh.geometry.needsUpdate = true;
-          } catch (e) {
-            current_x = previous_x;
-            current_y = previous_y;
-            current_z = previous_z;
-            settings.x_fn = previous_x;
-            settings.y_fn = previous_y;
-            settings.z_fn = previous_z;
-            try {
-              parametric_curve.f.x = Parser.parse(settings.x_fn).toJSFunction([
-                "p",
-                "t",
-              ]);
-              parametric_curve.f.y = Parser.parse(settings.y_fn).toJSFunction([
-                "p",
-                "t",
-              ]);
-              parametric_curve.f.z = Parser.parse(settings.z_fn).toJSFunction([
-                "p",
-                "t",
-              ]);
-              parametric_curve.mesh.geometry =
-                parametric_curve.construct_geometry(settings.time);
-              parametric_curve.mesh.geometry.needsUpdate = true;
-            } catch (e) {}
-          }
+          } catch (e) {}
         });
       animation.add(settings, "reset").name("Reset");
       animation.open();
@@ -410,29 +354,24 @@
               parametric_curve.construct_geometry(settings.time);
             parametric_curve.mesh.geometry.needsUpdate = true;
           } catch (e) {
-            current_x = previous_x;
-            current_y = previous_y;
-            current_z = previous_z;
-            settings.x_fn = previous_x;
-            settings.y_fn = previous_y;
-            settings.z_fn = previous_z;
-            try {
-              parametric_curve.f.x = Parser.parse(settings.x_fn).toJSFunction([
-                "p",
-                "t",
-              ]);
-              parametric_curve.f.y = Parser.parse(settings.y_fn).toJSFunction([
-                "p",
-                "t",
-              ]);
-              parametric_curve.f.z = Parser.parse(settings.z_fn).toJSFunction([
-                "p",
-                "t",
-              ]);
-              parametric_curve.mesh.geometry =
-                parametric_curve.construct_geometry(settings.time);
-              parametric_curve.mesh.geometry.needsUpdate = true;
-            } catch (e) {}
+            settings.x_fn = current_x;
+            settings.y_fn = current_y;
+            settings.z_fn = current_z;
+            parametric_curve.f.x = Parser.parse(settings.x_fn).toJSFunction([
+              "p",
+              "t",
+            ]);
+            parametric_curve.f.y = Parser.parse(settings.y_fn).toJSFunction([
+              "p",
+              "t",
+            ]);
+            parametric_curve.f.z = Parser.parse(settings.z_fn).toJSFunction([
+              "p",
+              "t",
+            ]);
+            parametric_curve.mesh.geometry =
+              parametric_curve.construct_geometry(settings.time);
+            parametric_curve.mesh.geometry.needsUpdate = true;
           }
         }
         renderer.render(scene, camera);
