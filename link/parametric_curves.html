@@ -192,8 +192,10 @@
           ) {
             let point = new THREE.Vector3();
             for (let dim in this.f)
-              if (this.f[dim] && Object.hasOwn(point, dim))
+              if (this.f[dim] && Object.hasOwn(point, dim)) {
                 point[dim] = this.f[dim](t, params);
+                if (point[dim] === Infinity) point[dim] = 1000;
+              }
             points[i] = point;
           }
 
