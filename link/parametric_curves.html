@@ -234,13 +234,9 @@
       // ========================= SETTINGS =======================
       const t_limit = 60;
 
-      var previous_x = "sin(p * 2) * cos(p * (t - 1))";
-      var previous_y = "sin(p) * sin(p * t)";
-      var previous_z = "0";
-
-      var current_x = previous_x;
-      var current_y = previous_y;
-      var current_z = previous_z;
+      var current_x = "sin(p * 2) * cos(p * (t - 1))";
+      var current_y = "sin(p) * sin(p * t)";
+      var current_z = "0";
 
       let settings = {
         x_fn: current_x,
@@ -273,7 +269,6 @@
             parametric_curve.mesh.geometry =
               parametric_curve.construct_geometry(settings.time);
             parametric_curve.mesh.geometry.needsUpdate = true;
-            previous_x = current_x;
             current_x = settings.x_fn;
           } catch (e) {
             settings.x_fn = current_x;
