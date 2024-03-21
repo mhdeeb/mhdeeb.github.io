@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
+    />
+    <title>Parametric graphs</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.min.js"
+        }
+      }
+    </script>
+
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+      }
+
+      .progress-bar-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+      }
+
+      #progress-bar {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 50%;
+      }
+
+      label {
+        position: absolute;
+        top: 55%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+      }
+
+      #instructions {
+        color: white;
+        position: absolute;
+        left: 50%;
+        top: 10px;
+        margin-left: -120px;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="instructions">
+      G : Move&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;R :
+      Rotate&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;S : Scale
+    </div>
+    <div class="progress-bar-container">
+      <label id="progress-label" for="progress-bar">Loading...</label>
+      <progress id="progress-bar" value="0" max="100"></progress>
+    </div>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+      import * as THREE from "three";
+      import Stats from "https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js";
+      import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/controls/OrbitControls.js";
+      import { Parser } from "https://cdn.jsdelivr.net/npm/expr-eval@2.0.2/+esm";
+      import { TransformControls } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/controls/TransformControls.js";
+      import { ParametricGeometry } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/geometries/ParametricGeometry.js";
+
+      const progressBar = document.getElementById("progress-bar");
+      const progressLabel = document.getElementById("progress-label");
+
+      const loadingManager = new THREE.LoadingManager();
+
+      loadingManager.onLoad = function () {
+        document.querySelector(".progress-bar-container").style.display =
+          "none";
+      };
+
+      loadingManager.onProgress = function (url, itemsLoaded, itemsTotal) {
+        progressBar.value = (itemsLoaded / itemsTotal) * 100;
+        progressLabel.textContent = `Loaded ${itemsLoaded} of ${itemsTotal} files.`;
+      };
+
+      loadingManager.onError = function (url) {
+        console.log("There was an error loading " + url);
+      };
+
+      const gui = new dat.GUI();
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      let canvas = document.getElementById("canvas");
+
+      let renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
+
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      renderer.setSize(width, height);
+
+      const stats = new Stats();
+      document.body.appendChild(stats.dom);
+      let fov = 45;
+      let camera = new THREE.PerspectiveCamera(fov, width / height, 1, 100);
+
+      camera.position.set(-3, 3, 5);
+
+      let controls = new OrbitControls(camera, renderer.domElement);
+
+      let distance = 70;
+      let boundingHeight = Math.tan((fov * (Math.PI / 180)) / 2) * distance;
+      let boundingWidth = boundingHeight * (width / height);
+
+      controls.saveState();
+
+      window.addEventListener("resize", () => {
+        width = window.innerWidth;
+        height = window.innerHeight;
+
+        boundingHeight = Math.tan((fov * (Math.PI / 180)) / 2) * distance;
+        boundingWidth = boundingHeight * (width / height);
+
+        camera.aspect = width / height;
+
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(width, height);
+      });
+
+      let scene = new THREE.Scene();
+
+      scene.background = new THREE.Color("#000");
+
+      scene.add(camera);
+
+      let clock = new THREE.Clock();
+
+      const textureLoader = new THREE.TextureLoader(loadingManager);
+      textureLoader.load();
+
+      let transformControl = new TransformControls(camera, renderer.domElement);
+      transformControl.addEventListener("dragging-changed", function (event) {
+        controls.enabled = !event.value;
+      });
+      scene.add(transformControl);
+
+      window.addEventListener("keydown", function (event) {
+        switch (event.code) {
+          case "KeyG":
+            transformControl.setMode("translate");
+            break;
+          case "KeyR":
+            transformControl.setMode("rotate");
+            break;
+          case "KeyS":
+            transformControl.setMode("scale");
+            break;
+        }
+      });
+
+      const axesHelper = new THREE.AxesHelper(5); // 5 is the size of the axes
+      scene.add(axesHelper); // Add the axes to the scene
+
+      // ==========================================================
+      // ======================== Relevant Code ===================
+      // ==========================================================
+      const t_limit = 60;
+      const base_points = 2000;
+
+      let material = new THREE.ShaderMaterial({
+        // Shader material for the parametric surface
+        uniforms: {},
+        vertexShader: `
+              varying vec3 pos;
+
+              void main() {
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
+
+                pos = normal;
+              }
+            `,
+        fragmentShader: `
+              varying vec3 pos;
+
+              void main() {
+                gl_FragColor = vec4(abs(pos), 1.);
+              }
+            `,
+        side: THREE.DoubleSide,
+      });
+
+      var current_x = "u"; // Default x function
+      var current_y = "u^2-v^2"; // Default y function
+      var current_z = "v"; // Default z function
+
+      var current_x_fn = Parser.parse(current_x).toJSFunction(["u", "v"]); // Parse the x function
+      var current_y_fn = Parser.parse(current_y).toJSFunction(["u", "v"]); // Parse the y function
+      var current_z_fn = Parser.parse(current_z).toJSFunction(["u", "v"]); // Parse the z function
+
+      function func(x, y, z) {
+        // Function to create the parametric geometry
+        return (u, v, target) => {
+          u = 2 * (u - 0.5);
+          v = 2 * (v - 0.5);
+          let X = x(u, v);
+          let Y = y(u, v);
+          let Z = z(u, v);
+          target.set(X, Y, Z);
+        };
+      }
+
+      let parametric_geometry = new ParametricGeometry( // Parametric geometry for the surface
+        func(current_x_fn, current_y_fn, current_z_fn),
+        100,
+        100
+      );
+
+      let parametric_mesh = new THREE.Mesh( // Mesh for the parametric geometry
+        parametric_geometry,
+        material.clone()
+      );
+
+      scene.add(parametric_mesh); // Add the mesh to the scene
+
+      transformControl.attach(parametric_mesh); // Attach the mesh to the transform control
+
+      let ground = new THREE.Mesh( // Create the ground
+        new THREE.PlaneGeometry(100, 100),
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color("rgb(128, 128, 128)"),
+        })
+      );
+      ground.rotation.x = -Math.PI / 2; // Rotate the ground
+      ground.position.y = -5; // Position the ground
+      ground.receiveShadow = true; // Enable shadow for the ground
+      scene.add(ground); // Add the ground to the scene
+      // ==========================================================
+
+      // ========================= SETTINGS =======================
+
+      let settings = {
+        x_fn: current_x,
+        y_fn: current_y,
+        z_fn: current_z,
+      };
+      gui
+        .add(settings, "x_fn")
+        .name("X(u, v)")
+        .onFinishChange(() => {
+          current_x_fn = Parser.parse(settings.x_fn).toJSFunction(["u", "v"]);
+          current_x = settings.x_fn;
+
+          parametric_geometry = new ParametricGeometry(
+            func(current_x_fn, current_y_fn, current_z_fn),
+            100,
+            100
+          ); // Create the parametric geometry
+
+          parametric_mesh.geometry.dispose();
+
+          parametric_mesh.geometry = parametric_geometry;
+
+          parametric_mesh.geometry.needsUpdate = true;
+        });
+      gui
+        .add(settings, "y_fn")
+        .name("Y(u, v)")
+        .onFinishChange(() => {
+          current_y_fn = Parser.parse(settings.y_fn).toJSFunction(["u", "v"]);
+          current_y = settings.y_fn;
+
+          parametric_geometry = new ParametricGeometry(
+            func(current_x_fn, current_y_fn, current_z_fn),
+            100,
+            100
+          );
+
+          parametric_mesh.geometry.dispose();
+
+          parametric_mesh.geometry = parametric_geometry;
+
+          parametric_mesh.geometry.needsUpdate = true;
+        });
+      gui
+        .add(settings, "z_fn")
+        .name("Z(u, v)")
+        .onFinishChange(() => {
+          current_z_fn = Parser.parse(settings.z_fn).toJSFunction(["u", "v"]);
+          current_z = settings.z_fn;
+
+          parametric_geometry = new ParametricGeometry(
+            func(current_x_fn, current_y_fn, current_z_fn),
+            100,
+            100
+          );
+
+          parametric_mesh.geometry.dispose();
+
+          parametric_mesh.geometry = parametric_geometry;
+
+          parametric_mesh.geometry.needsUpdate = true;
+        });
+
+      // ==========================================================
+
+      function update(delta) {
+        gui.updateDisplay();
+        stats.update();
+      }
+
+      // ==========================================================
+      // ======================== End Relevant Code ===============
+      // ==========================================================
+
+      function render() {
+        renderer.render(scene, camera);
+      }
+
+      function animate() {
+        let delta = clock.getDelta();
+        render();
+        update(delta);
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    </script>
+  </body>
+</html>
