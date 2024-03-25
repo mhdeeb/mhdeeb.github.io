@@ -285,7 +285,15 @@
       var current_z = "0";
 
       const color_type = ["rgb", "hsv", "solid"];
-      const export_ext = ["png", "webp", "svg", "jpg", "gif", "mp4", "json"];
+      const export_ext = [
+        "png (WIP)",
+        "webp (WIP)",
+        "svg (WIP)",
+        "jpg (WIP)",
+        "gif (WIP)",
+        "mp4 (WIP)",
+        "json",
+      ];
 
       let settings = {
         x_fn: current_x,
@@ -519,12 +527,19 @@
       general.add(settings, "add_curve").name("Add Curve (WIP)");
       general.add(settings, "reset_camera").name("Reset Camera");
       general.addColor(settings, "background").name("Background");
-      const exp = gui.addFolder("Export (WIP)");
-      exp.add(settings, "export_ext", export_ext).name("Extension (WIP)");
+      const exp = gui.addFolder("Export");
       exp
+        .add(settings, "export_ext", export_ext)
+        .name("Extension")
+        .onChange((value) => {
+          if (value === export_ext[3] || value === export_ext[6])
+            transparent_background.hide();
+          else transparent_background.show();
+        });
+      const transparent_background = exp
         .add(settings, "transparent_background")
         .name("Transparent Background (WIP)");
-      exp.add(settings, "export").name("Export (WIP)");
+      exp.add(settings, "export").name("Export");
 
       gui.add(settings, "load_graph").name("Load JSON");
 
