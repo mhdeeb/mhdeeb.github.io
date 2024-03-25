@@ -82,6 +82,8 @@
 
       const gui = new dat.GUI();
 
+      gui.width = 400;
+
       let width = window.innerWidth;
       let height = window.innerHeight;
 
@@ -144,7 +146,11 @@
       const base_points = 2000;
 
       let material = new THREE.ShaderMaterial({
-        uniforms: {},
+        uniforms: {
+          solid: { value: false },
+          solid_color: { value: new THREE.Color("#ffffff") },
+          opacity: { value: 1 },
+        },
         vertexShader: `
             varying vec3 pos;
 
@@ -156,8 +162,9 @@
             `,
         fragmentShader: `
             varying vec3 pos;
-
-            const float PI = 3.1415926535897932384626433832795;
+            uniform bool solid;
+            uniform vec3 solid_color;
+            uniform float opacity;
 
             vec3 hsv2rgb(vec3 c) {
                 vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -167,11 +174,22 @@
 
             void main() {
               vec3 vPos = (pos + 1.) * .5;
-
+              
               float dist = distance(pos, vec3(0., 0., 0.));
-              gl_FragColor = vec4(hsv2rgb(vec3(dist, 1., 1.)), 1.);
+
+              if (solid) {
+                gl_FragColor = vec4(solid_color, opacity);
+                return;
+              }
+
+              vec3 color = hsv2rgb(vec3(dist, 1., 1.));
+
+              float alpha = opacity;
+
+              gl_FragColor = vec4(color, alpha);
             }
             `,
+        transparent: true,
       });
 
       class ParametricCurve {
@@ -215,8 +233,10 @@
           if (this.interpolate) {
             if (Object.keys(this.f).length === 2)
               curve = new THREE.SplineCurve(points);
-            else if (Object.keys(this.f).length === 3)
+            else if (Object.keys(this.f).length === 3) {
               curve = new THREE.CatmullRomCurve3(points);
+              curve.curveType = "centripetal";
+            }
             return new THREE.BufferGeometry().setFromPoints(
               curve.getPoints(
                 Math.round(this.range.steps * this.interpolate_multiplier)
@@ -264,15 +284,20 @@
       var current_y = "sin(p) * sin(p * t)";
       var current_z = "0";
 
+      const color_type = ["rgb", "hsv"];
+
       let settings = {
         x_fn: current_x,
         y_fn: current_y,
         z_fn: current_z,
         p: 1,
-        r: "1",
-        g: "1",
-        b: "1",
+        normalize_color: true,
+        color_type,
+        c1: "sqrt(x * x + y * y + z * z)",
+        c2: "1",
+        c3: "1",
         a: "1",
+        solid_color: "#ffffff",
         points: 2000,
         background: "#000000",
         interpolate_points: true,
@@ -301,8 +326,9 @@
           controls.reset();
         },
         add_curve: function () {},
-        export_png: function () {},
-        export_mp4: function () {},
+        export_ext: ["png", "webp", "svg", "jpg", "gif", "mp4"],
+        transparent_background: false,
+        export: function () {},
       };
       const p1 = gui.addFolder("Parametric 1");
       const functions = p1.addFolder("Functions");
@@ -361,10 +387,55 @@
           parametric_curve.recalculate(settings.time);
         });
       const color = p1.addFolder("Color (WIP)");
-      color.add(settings, "r").name("R(x, y, z, t) (WIP)");
-      color.add(settings, "g").name("G(x, y, z, t) (WIP)");
-      color.add(settings, "b").name("B(x, y, z, t) (WIP)");
-      color.add(settings, "a").name("A(x, y, z, t) (WIP)");
+      color
+        .add(settings, "normalize_color", settings.normalize_color)
+        .name("Normalize Color (WIP)");
+      color
+        .add(settings, "color_type", settings.color_type)
+        .name("Color Type (WIP)")
+        .setValue(color_type[1])
+        .onChange((value) => {
+          if (value === color_type[0]) {
+            c1.name("R(x, y, z, t) (WIP)");
+            c2.name("G(x, y, z, t) (WIP)");
+            c3.name("B(x, y, z, t) (WIP)");
+          } else if (value === color_type[1]) {
+            c1.name("H(x, y, z, t) (WIP)");
+            c2.name("S(x, y, z, t) (WIP)");
+            c3.name("V(x, y, z, t) (WIP)");
+          }
+        });
+      const c1 = color
+        .add(settings, "c1")
+        .name("H(x, y, z, t) (WIP)")
+        .onFinishChange((value) => {
+          material.uniforms.solid.value = false;
+        });
+      const c2 = color
+        .add(settings, "c2")
+        .name("S(x, y, z, t) (WIP)")
+        .onFinishChange((value) => {
+          material.uniforms.solid.value = false;
+        });
+      const c3 = color
+        .add(settings, "c3")
+        .name("V(x, y, z, t) (WIP)")
+        .onFinishChange((value) => {
+          material.uniforms.solid.value = false;
+        });
+      color
+        .add(settings, "a")
+        .name("A(x, y, z, t) (WIP)")
+        .onFinishChange((value) => {
+          material.uniforms.solid.value = false;
+        });
+      color
+        .addColor(settings, "solid_color")
+        .name("Solid Color")
+        .onChange((value) => {
+          material.uniforms.solid.value = true;
+          material.uniforms.solid_color.value = new THREE.Color(value);
+        });
       const animation = p1.addFolder("Animation");
       animation.add(settings, "animate").name("Animate");
       animation
@@ -408,9 +479,15 @@
       general.add(settings, "add_curve").name("Add Curve (WIP)");
       general.add(settings, "reset_camera").name("Reset Camera");
       general.addColor(settings, "background").name("Background");
-      const Export = gui.addFolder("Export (WIP)");
-      Export.add(settings, "export_png").name("Export PNG (WIP)");
-      Export.add(settings, "export_mp4").name("Export MP4 (WIP)");
+      const exp = gui.addFolder("Export (WIP)");
+      exp
+        .add(settings, "export_ext", settings.export_ext)
+        .name("Extension (WIP)")
+        .setValue("png");
+      exp
+        .add(settings, "transparent_background")
+        .name("Transparent Background (WIP)");
+      exp.add(settings, "export").name("Export (WIP)");
       general.open();
 
       // ==========================================================
