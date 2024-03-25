@@ -7,7 +7,6 @@
       content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
     />
     <title>Parametric graphs</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
     <script type="importmap">
       {
         "imports": {
@@ -40,7 +39,7 @@
         width: 50%;
       }
 
-      label {
+      .progress-bar-container label {
         position: absolute;
         top: 55%;
         left: 50%;
@@ -48,10 +47,8 @@
         color: white;
       }
 
-      .dg li.save-row {
-        line-height: 25px;
-        background: #1a1a1a;
-        border: 0;
+      .lil-gui {
+        --width: 400px;
       }
     </style>
   </head>
@@ -66,6 +63,7 @@
       import Stats from "https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js";
       import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/controls/OrbitControls.js";
       import { Parser } from "https://cdn.jsdelivr.net/npm/expr-eval@2.0.2/+esm";
+      import lilGui from "https://cdn.jsdelivr.net/npm/lil-gui@0.19.2/+esm";
 
       const progressBar = document.getElementById("progress-bar");
       const progressLabel = document.getElementById("progress-label");
@@ -86,9 +84,7 @@
         console.log("There was an error loading " + url);
       };
 
-      const gui = new dat.GUI({ preset: "Default" });
-
-      gui.width = 400;
+      const gui = new lilGui();
 
       let width = window.innerWidth;
       let height = window.innerHeight;
@@ -335,7 +331,6 @@
         transparent_background: false,
         export: function () {},
       };
-      gui.remember(settings);
       const p1 = gui.addFolder("Parametric 1");
       const functions = p1.addFolder("Functions");
       functions
@@ -383,7 +378,6 @@
             settings.z_fn = current_z;
           }
         });
-      functions.open();
       const parameters = p1.addFolder("Parameters (WIP)");
       parameters
         .add(settings, "p", 0, 1, 0.001)
@@ -393,9 +387,7 @@
           parametric_curve.recalculate(settings.time);
         });
       const color = p1.addFolder("Color (WIP)");
-      color
-        .add(settings, "normalize_color", settings.normalize_color)
-        .name("Normalize Color (WIP)");
+      color.add(settings, "normalize_color").name("Normalize Color (WIP)");
       color
         .add(settings, "color_type", color_type)
         .name("Color Type (WIP)")
@@ -405,14 +397,25 @@
             c2.name("G(x, y, z, t) (WIP)");
             c3.name("B(x, y, z, t) (WIP)");
             material.uniforms.solid.value = false;
+            c1.show();
+            c2.show();
+            c3.show();
+            solid_color.hide();
           } else if (value === color_type[1]) {
             c1.name("H(x, y, z, t) (WIP)");
             c2.name("S(x, y, z, t) (WIP)");
             c3.name("V(x, y, z, t) (WIP)");
             material.uniforms.solid.value = false;
+            c1.show();
+            c2.show();
+            c3.show();
+            solid_color.hide();
           } else {
-            c1.name("A(x, y, z, t) (WIP)");
             material.uniforms.solid.value = true;
+            c1.hide();
+            c2.hide();
+            c3.hide();
+            solid_color.show();
           }
         });
       const c1 = color
@@ -427,9 +430,10 @@
         .add(settings, "c3")
         .name("V(x, y, z, t) (WIP)")
         .onFinishChange((value) => {});
-      color
+      const solid_color = color
         .addColor(settings, "solid_color")
         .name("Color")
+        .hide()
         .onChange((value) => {
           material.uniforms.solid_color.value = new THREE.Color(value);
         });
@@ -438,13 +442,15 @@
         .name("A(x, y, z, t) (WIP)")
         .onFinishChange((value) => {});
       const animation = p1.addFolder("Animation");
-      animation.add(settings, "animate").name("Animate");
+      animation.add(settings, "animate").name("Animate").listen();
       animation
         .add(settings, "speed_multiplier", 0, 10, 0.01)
-        .name("Speed Multiplier");
+        .name("Speed Multiplier")
+        .listen();
       animation
         .add(settings, "time", 0, t_limit, 0.01)
         .name("Time")
+        .listen()
         .onChange(() => {
           parametric_curve.recalculate(settings.time);
         });
@@ -454,6 +460,7 @@
       advanced
         .add(settings, "points", 100, 10000, 1)
         .name("Points")
+        .listen()
         .onChange(() => {
           parametric_curve.range.steps = settings.points;
           parametric_curve.recalculate(settings.time);
@@ -461,6 +468,7 @@
       advanced
         .add(settings, "interpolate_points")
         .name("Interpolate Points")
+        .listen()
         .onChange(() => {
           parametric_curve.interpolate = settings.interpolate_points;
           parametric_curve.recalculate(settings.time);
@@ -468,6 +476,7 @@
       advanced
         .add(settings, "interpolate_multiplier", 1.1, 10, 0.1)
         .name("Interpolate Multiplier")
+        .listen()
         .onChange(() => {
           parametric_curve.interpolate_multiplier =
             settings.interpolate_multiplier;
@@ -475,20 +484,21 @@
         });
       advanced.add(settings, "reset_advanced").name("Reset");
       p1.add(settings, "delete_curve").name("Delete Curve (WIP)");
-      p1.open();
       const general = gui.addFolder("General");
       general.add(settings, "add_curve").name("Add Curve (WIP)");
       general.add(settings, "reset_camera").name("Reset Camera");
       general.addColor(settings, "background").name("Background");
       const exp = gui.addFolder("Export (WIP)");
-      exp
-        .add(settings, "export_ext", settings.export_ext)
-        .name("Extension (WIP)");
+      exp.add(settings, "export_ext", export_ext).name("Extension (WIP)");
       exp
         .add(settings, "transparent_background")
         .name("Transparent Background (WIP)");
       exp.add(settings, "export").name("Export (WIP)");
-      general.open();
+
+      parameters.close();
+      color.close();
+      advanced.close();
+      exp.close();
 
       // ==========================================================
 
@@ -497,7 +507,6 @@
           settings.time += delta * settings.speed_multiplier;
           if (settings.time > t_limit) settings.time = 0;
         }
-        gui.updateDisplay();
         stats.update();
       }
 
