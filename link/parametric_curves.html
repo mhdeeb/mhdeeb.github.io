@@ -177,16 +177,14 @@
               
               float dist = distance(pos, vec3(0., 0., 0.));
 
-              if (solid) {
-                gl_FragColor = vec4(solid_color, opacity);
-                return;
-              }
-
-              vec3 color = hsv2rgb(vec3(dist, 1., 1.));
-
               float alpha = opacity;
 
-              gl_FragColor = vec4(color, alpha);
+              if (solid) {
+                gl_FragColor = vec4(solid_color, alpha);
+              } else {
+                vec3 color = hsv2rgb(vec3(dist, 1., 1.));
+                gl_FragColor = vec4(color, alpha);
+              }
             }
             `,
         transparent: true,
