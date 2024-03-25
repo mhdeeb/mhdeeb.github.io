@@ -99,7 +99,7 @@
       const stats = new Stats();
       document.body.appendChild(stats.dom);
       let fov = 45;
-      let camera = new THREE.PerspectiveCamera(fov, width / height, 1, 100);
+      let camera = new THREE.PerspectiveCamera(fov, width / height, 0.1, 100);
 
       camera.position.set(0, 0, 5);
 
@@ -134,7 +134,8 @@
       let clock = new THREE.Clock();
 
       const textureLoader = new THREE.TextureLoader(loadingManager);
-      textureLoader.load();
+
+      loadingManager.onLoad();
 
       // ==========================================================
       // ======================== Relevant Code ===================
@@ -195,6 +196,8 @@
 
           let curve = null;
 
+          if (steps === 0) return new THREE.BufferGeometry();
+
           for (
             let t = this.range.start, i = 0;
             t <= this.range.end;
@@ -254,7 +257,6 @@
       );
 
       scene.add(parametric_curve.mesh);
-      // ==========================================================
 
       // ========================= SETTINGS =======================
 
@@ -266,7 +268,13 @@
         x_fn: current_x,
         y_fn: current_y,
         z_fn: current_z,
+        p: 1,
+        r: "1",
+        g: "1",
+        b: "1",
+        a: "1",
         points: 2000,
+        background: "#000000",
         interpolate_points: true,
         interpolate_multiplier: 1.5,
         reset_advanced: function () {
@@ -293,12 +301,14 @@
           controls.reset();
         },
         add_curve: function () {},
+        export_png: function () {},
+        export_mp4: function () {},
       };
       const p1 = gui.addFolder("Parametric 1");
       const functions = p1.addFolder("Functions");
       functions
         .add(settings, "x_fn")
-        .name("X(p, t)")
+        .name("x(p, t)")
         .onFinishChange(() => {
           try {
             parametric_curve.f.x = Parser.parse(settings.x_fn).toJSFunction([
@@ -313,7 +323,7 @@
         });
       functions
         .add(settings, "y_fn")
-        .name("Y(p, t)")
+        .name("y(p, t)")
         .onFinishChange(() => {
           try {
             parametric_curve.f.y = Parser.parse(settings.y_fn).toJSFunction([
@@ -328,7 +338,7 @@
         });
       functions
         .add(settings, "z_fn")
-        .name("Z(p, t)")
+        .name("z(p, t)")
         .onFinishChange(() => {
           try {
             parametric_curve.f.z = Parser.parse(settings.z_fn).toJSFunction([
@@ -343,7 +353,18 @@
         });
       functions.open();
       const parameters = p1.addFolder("Parameters (WIP)");
+      parameters
+        .add(settings, "p", 0, 1, 0.001)
+        .name("P")
+        .onChange(() => {
+          parametric_curve.range.end = 2 * Math.PI * settings.p;
+          parametric_curve.recalculate(settings.time);
+        });
       const color = p1.addFolder("Color (WIP)");
+      color.add(settings, "r").name("R(x, y, z, t) (WIP)");
+      color.add(settings, "g").name("G(x, y, z, t) (WIP)");
+      color.add(settings, "b").name("B(x, y, z, t) (WIP)");
+      color.add(settings, "a").name("A(x, y, z, t) (WIP)");
       const animation = p1.addFolder("Animation");
       animation.add(settings, "animate").name("Animate");
       animation
@@ -383,8 +404,14 @@
       advanced.add(settings, "reset_advanced").name("Reset");
       p1.add(settings, "delete_curve").name("Delete Curve (WIP)");
       p1.open();
-      gui.add(settings, "add_curve").name("Add Curve (WIP)");
-      gui.add(settings, "reset_camera").name("Reset Camera");
+      const general = gui.addFolder("General");
+      general.add(settings, "add_curve").name("Add Curve (WIP)");
+      general.add(settings, "reset_camera").name("Reset Camera");
+      general.addColor(settings, "background").name("Background");
+      const Export = gui.addFolder("Export (WIP)");
+      Export.add(settings, "export_png").name("Export PNG (WIP)");
+      Export.add(settings, "export_mp4").name("Export MP4 (WIP)");
+      general.open();
 
       // ==========================================================
 
@@ -402,6 +429,7 @@
       // ==========================================================
 
       function render() {
+        scene.background = new THREE.Color(settings.background);
         if (settings.animate) {
           try {
             parametric_curve.mesh.geometry =

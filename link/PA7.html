@@ -184,19 +184,19 @@
         // Shader material for the parametric surface
         uniforms: {},
         vertexShader: `
-              varying vec3 pos;
+              varying vec3 vNormal;
 
               void main() {
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
 
-                pos = normal;
+                vNormal = normal;
               }
             `,
         fragmentShader: `
-              varying vec3 pos;
+              varying vec3 vNormal;
 
               void main() {
-                gl_FragColor = vec4(abs(pos), 1.);
+                gl_FragColor = vec4((vNormal + 1.)/2. + .1, 1.);
               }
             `,
         side: THREE.DoubleSide,
