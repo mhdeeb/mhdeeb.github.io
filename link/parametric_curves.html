@@ -47,6 +47,12 @@
         transform: translate(-50%, -50%);
         color: white;
       }
+
+      .dg li.save-row {
+        line-height: 25px;
+        background: #1a1a1a;
+        border: 0;
+      }
     </style>
   </head>
   <body>
@@ -80,7 +86,7 @@
         console.log("There was an error loading " + url);
       };
 
-      const gui = new dat.GUI();
+      const gui = new dat.GUI({ preset: "Default" });
 
       gui.width = 400;
 
@@ -174,7 +180,7 @@
 
             void main() {
               vec3 vPos = (pos + 1.) * .5;
-              
+
               float dist = distance(pos, vec3(0., 0., 0.));
 
               float alpha = opacity;
@@ -282,7 +288,8 @@
       var current_y = "sin(p) * sin(p * t)";
       var current_z = "0";
 
-      const color_type = ["rgb", "hsv"];
+      const color_type = ["rgb", "hsv", "solid"];
+      const export_ext = ["png", "webp", "svg", "jpg", "gif", "mp4"];
 
       let settings = {
         x_fn: current_x,
@@ -290,7 +297,7 @@
         z_fn: current_z,
         p: 1,
         normalize_color: true,
-        color_type,
+        color_type: color_type[1],
         c1: "sqrt(x * x + y * y + z * z)",
         c2: "1",
         c3: "1",
@@ -324,10 +331,11 @@
           controls.reset();
         },
         add_curve: function () {},
-        export_ext: ["png", "webp", "svg", "jpg", "gif", "mp4"],
+        export_ext: export_ext[0],
         transparent_background: false,
         export: function () {},
       };
+      gui.remember(settings);
       const p1 = gui.addFolder("Parametric 1");
       const functions = p1.addFolder("Functions");
       functions
@@ -389,49 +397,44 @@
         .add(settings, "normalize_color", settings.normalize_color)
         .name("Normalize Color (WIP)");
       color
-        .add(settings, "color_type", settings.color_type)
+        .add(settings, "color_type", color_type)
         .name("Color Type (WIP)")
-        .setValue(color_type[1])
         .onChange((value) => {
           if (value === color_type[0]) {
             c1.name("R(x, y, z, t) (WIP)");
             c2.name("G(x, y, z, t) (WIP)");
             c3.name("B(x, y, z, t) (WIP)");
+            material.uniforms.solid.value = false;
           } else if (value === color_type[1]) {
             c1.name("H(x, y, z, t) (WIP)");
             c2.name("S(x, y, z, t) (WIP)");
             c3.name("V(x, y, z, t) (WIP)");
+            material.uniforms.solid.value = false;
+          } else {
+            c1.name("A(x, y, z, t) (WIP)");
+            material.uniforms.solid.value = true;
           }
         });
       const c1 = color
         .add(settings, "c1")
         .name("H(x, y, z, t) (WIP)")
-        .onFinishChange((value) => {
-          material.uniforms.solid.value = false;
-        });
+        .onFinishChange((value) => {});
       const c2 = color
         .add(settings, "c2")
         .name("S(x, y, z, t) (WIP)")
-        .onFinishChange((value) => {
-          material.uniforms.solid.value = false;
-        });
+        .onFinishChange((value) => {});
       const c3 = color
         .add(settings, "c3")
         .name("V(x, y, z, t) (WIP)")
-        .onFinishChange((value) => {
-          material.uniforms.solid.value = false;
-        });
+        .onFinishChange((value) => {});
       color
         .add(settings, "a")
         .name("A(x, y, z, t) (WIP)")
-        .onFinishChange((value) => {
-          material.uniforms.solid.value = false;
-        });
+        .onFinishChange((value) => {});
       color
         .addColor(settings, "solid_color")
-        .name("Solid Color")
+        .name("Color")
         .onChange((value) => {
-          material.uniforms.solid.value = true;
           material.uniforms.solid_color.value = new THREE.Color(value);
         });
       const animation = p1.addFolder("Animation");
@@ -480,8 +483,7 @@
       const exp = gui.addFolder("Export (WIP)");
       exp
         .add(settings, "export_ext", settings.export_ext)
-        .name("Extension (WIP)")
-        .setValue("png");
+        .name("Extension (WIP)");
       exp
         .add(settings, "transparent_background")
         .name("Transparent Background (WIP)");
