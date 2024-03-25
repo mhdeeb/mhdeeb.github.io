@@ -428,15 +428,15 @@
         .name("V(x, y, z, t) (WIP)")
         .onFinishChange((value) => {});
       color
-        .add(settings, "a")
-        .name("A(x, y, z, t) (WIP)")
-        .onFinishChange((value) => {});
-      color
         .addColor(settings, "solid_color")
         .name("Color")
         .onChange((value) => {
           material.uniforms.solid_color.value = new THREE.Color(value);
         });
+      color
+        .add(settings, "a")
+        .name("A(x, y, z, t) (WIP)")
+        .onFinishChange((value) => {});
       const animation = p1.addFolder("Animation");
       animation.add(settings, "animate").name("Animate");
       animation
