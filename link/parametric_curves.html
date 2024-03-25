@@ -285,7 +285,7 @@
       var current_z = "0";
 
       const color_type = ["rgb", "hsv", "solid"];
-      const export_ext = ["png", "webp", "svg", "jpg", "gif", "mp4"];
+      const export_ext = ["png", "webp", "svg", "jpg", "gif", "mp4", "json"];
 
       let settings = {
         x_fn: current_x,
@@ -329,7 +329,38 @@
         add_curve: function () {},
         export_ext: export_ext[0],
         transparent_background: false,
-        export: function () {},
+        export: function () {
+          if (settings.export_ext === export_ext[6]) {
+            const json = gui.save();
+            const blob = new Blob([JSON.stringify(json)], {
+              type: "application/json",
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.setAttribute(
+              "download",
+              `parametric_curve_${new Date().toISOString()}.json`
+            );
+            a.setAttribute("href", url);
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        },
+        load_graph: function () {
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = ".json";
+          input.onchange = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const json = JSON.parse(e.target.result);
+              gui.load(json);
+            };
+            reader.readAsText(file);
+          };
+          input.click();
+        },
       };
       const p1 = gui.addFolder("Parametric 1");
       const functions = p1.addFolder("Functions");
@@ -494,6 +525,8 @@
         .add(settings, "transparent_background")
         .name("Transparent Background (WIP)");
       exp.add(settings, "export").name("Export (WIP)");
+
+      gui.add(settings, "load_graph").name("Load JSON");
 
       parameters.close();
       color.close();
