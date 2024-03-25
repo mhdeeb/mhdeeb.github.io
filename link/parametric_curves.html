@@ -375,6 +375,7 @@
       functions
         .add(settings, "x_fn")
         .name("x(p, t)")
+        .listen()
         .onFinishChange(() => {
           try {
             parametric_curve.f.x = Parser.parse(settings.x_fn).toJSFunction([
@@ -390,6 +391,7 @@
       functions
         .add(settings, "y_fn")
         .name("y(p, t)")
+        .listen()
         .onFinishChange(() => {
           try {
             parametric_curve.f.y = Parser.parse(settings.y_fn).toJSFunction([
@@ -405,6 +407,7 @@
       functions
         .add(settings, "z_fn")
         .name("z(p, t)")
+        .listen()
         .onFinishChange(() => {
           try {
             parametric_curve.f.z = Parser.parse(settings.z_fn).toJSFunction([
@@ -460,14 +463,17 @@
       const c1 = color
         .add(settings, "c1")
         .name("H(x, y, z, t) (WIP)")
+        .listen()
         .onFinishChange((value) => {});
       const c2 = color
         .add(settings, "c2")
         .name("S(x, y, z, t) (WIP)")
+        .listen()
         .onFinishChange((value) => {});
       const c3 = color
         .add(settings, "c3")
         .name("V(x, y, z, t) (WIP)")
+        .listen()
         .onFinishChange((value) => {});
       const solid_color = color
         .addColor(settings, "solid_color")
