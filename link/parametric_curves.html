@@ -107,6 +107,30 @@
 
       renderer.setClearColor("#000", 1);
 
+      const stream = canvas.captureStream(0);
+      const track = stream.getVideoTracks()[0];
+      if (!track.requestFrame) {
+        track.requestFrame = () => stream.requestFrame();
+      }
+      const recorder = new MediaRecorder(stream, {
+        mimeType: "video/webm",
+      });
+      var chunks = [];
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = (e) => {
+        const blob = new Blob(chunks, { type: "video/webm" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.setAttribute(
+          "download",
+          `parametric_curve_${new Date().toISOString()}.webm`
+        );
+        a.setAttribute("href", url);
+        a.click();
+        URL.revokeObjectURL(url);
+        chunks = [];
+      };
+
       const stats = new Stats();
       document.body.appendChild(stats.dom);
       let fov = 45;
@@ -290,16 +314,10 @@
       var current_x = "sin(p * 2) * cos(p * (t - 1))";
       var current_y = "sin(p) * sin(p * t)";
       var current_z = "0";
+      var recording = false;
 
       const color_type = ["rgb", "hsv", "solid"];
-      const export_ext = [
-        "png",
-        "webp",
-        "jpg",
-        "gif (WIP)",
-        "mp4 (WIP)",
-        "json",
-      ];
+      const export_ext = ["png", "webp", "jpg", "gif", "json"];
 
       let settings = {
         x_fn: current_x,
@@ -393,30 +411,6 @@
               URL.revokeObjectURL(url);
             }, "image/gif");
           } else if (settings.export_ext === export_ext[4]) {
-            const canvas = renderer.domElement;
-            const stream = canvas.captureStream(60);
-            const recorder = new MediaRecorder(stream, {
-              mimeType: "video/webm",
-            });
-            const chunks = [];
-            recorder.ondataavailable = (e) => chunks.push(e.data);
-            recorder.onstop = (e) => {
-              const blob = new Blob(chunks, { type: "video/webm" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.setAttribute(
-                "download",
-                `parametric_curve_${new Date().toISOString()}.webm`
-              );
-              a.setAttribute("href", url);
-              a.click();
-              URL.revokeObjectURL(url);
-            };
-            recorder.start();
-            setTimeout(() => {
-              recorder.stop();
-            }, 5000);
-          } else if (settings.export_ext === export_ext[5]) {
             const json = gui.save();
             const blob = new Blob([JSON.stringify(json)], {
               type: "application/json",
@@ -431,6 +425,21 @@
             a.click();
             URL.revokeObjectURL(url);
           }
+        },
+        record: function () {
+          if (recording) {
+            record_button.name("Record");
+            export_button.enable();
+            load_button.enable();
+            recorder.stop();
+          } else {
+            record_button.name("Stop Recording");
+            export_button.disable();
+            load_button.disable();
+            recorder.start();
+          }
+
+          recording = !recording;
         },
         load_graph: function () {
           const input = document.createElement("input");
@@ -628,14 +637,17 @@
         });
       const exp = gui.addFolder("Export");
       exp.add(settings, "export_ext", export_ext).name("Extension");
-      exp.add(settings, "export").name("Export");
+      const export_button = exp.add(settings, "export").name("Export");
+      const record = exp.addFolder("Record");
+      const record_button = record.add(settings, "record").name("Record");
 
-      gui.add(settings, "load_graph").name("Load JSON");
+      const load_button = gui.add(settings, "load_graph").name("Load JSON");
 
       parameters.close();
       color.close();
       advanced.close();
       exp.close();
+      record.close();
 
       // ==========================================================
 
@@ -677,6 +689,7 @@
           }
         }
         renderer.render(scene, camera);
+        if (recording) track.requestFrame();
       }
 
       function animate() {
