@@ -188,6 +188,12 @@
             uniform int type;
             uniform vec3 solid_color;
             uniform float time;
+            uniform float max_time;
+            uniform vec3 min_point;
+            uniform vec3 volume;
+            uniform bool normalize_parameters;
+
+            const float PI = 3.14159265359;
 
             vec3 hsv2rgb(vec3 c) {
                 vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -196,13 +202,26 @@
             }
 
             void main() {
-              vec3 vPos = (pos + 1.) * .5;
-
               float x = pos.x;
               float y = pos.y;
               float z = pos.z;
               float t = time;
-              
+
+              if (normalize_parameters) {
+                float vx = volume.x;
+                float vy = volume.y;
+                float vz = volume.z;
+
+                if (vx == 0.0) vx = 1.0;
+                if (vy == 0.0) vy = 1.0;
+                if (vz == 0.0) vz = 1.0;
+
+                x = (x - min_point.x) / vx;
+                y = (y - min_point.y) / vy;
+                z = (z - min_point.z) / vz;
+                t = time / max_time;
+              }
+
               if (type == 0) {
                 vec3 color = vec3(${c1}, ${c2}, ${c3});
                 gl_FragColor = vec4(color, ${a});
@@ -221,6 +240,10 @@
           type: { value: 1 },
           solid_color: { value: new THREE.Color("#ffffff") },
           time: { value: 0 },
+          min_point: { value: new THREE.Vector3(Infinity, Infinity, Infinity) },
+          volume: { value: new THREE.Vector3(-Infinity, -Infinity, -Infinity) },
+          normalize_parameters: { value: false },
+          max_time: { value: t_limit },
         },
         vertexShader: `
             varying vec3 pos;
@@ -244,9 +267,10 @@
           this.range = range;
           this.interpolate = interpolate || false;
           this.interpolate_multiplier = interpolate_multiplier || 1;
+          this.material = material;
           this.mesh = new THREE.Line(
             this.construct_geometry(params, true),
-            material
+            this.material
           );
         }
 
@@ -259,6 +283,18 @@
 
           if (steps === 0) return new THREE.BufferGeometry();
 
+          this.material.uniforms.min_point.value = new THREE.Vector3(
+            Infinity,
+            Infinity,
+            Infinity
+          );
+
+          this.material.uniforms.volume.value = new THREE.Vector3(
+            -Infinity,
+            -Infinity,
+            -Infinity
+          );
+
           for (
             let t = this.range.start, i = 0;
             t <= this.range.end;
@@ -269,9 +305,42 @@
               if (this.f[dim] && Object.hasOwn(point, dim)) {
                 point[dim] = this.f[dim](t, params);
                 if (point[dim] === Infinity) point[dim] = 1000;
+                if (point[dim] === -Infinity) point[dim] = -1000;
+
+                this.material.uniforms.min_point.value[dim] = Math.min(
+                  this.material.uniforms.min_point.value[dim],
+                  point[dim]
+                );
+                this.material.uniforms.volume.value[dim] = Math.max(
+                  this.material.uniforms.volume.value[dim],
+                  point[dim]
+                );
               }
             points[i] = point;
           }
+
+          if (this.material.uniforms.min_point.value.x === Infinity)
+            this.material.uniforms.min_point.value.x = 0;
+          if (this.material.uniforms.min_point.value.y === Infinity)
+            this.material.uniforms.min_point.value.y = 0;
+          if (this.material.uniforms.min_point.value.z === Infinity)
+            this.material.uniforms.min_point.value.z = 0;
+
+          if (this.material.uniforms.volume.value.x === -Infinity)
+            this.material.uniforms.volume.value.x = 0;
+          if (this.material.uniforms.volume.value.y === -Infinity)
+            this.material.uniforms.volume.value.y = 0;
+          if (this.material.uniforms.volume.value.z === -Infinity)
+            this.material.uniforms.volume.value.z = 0;
+
+          this.material.uniforms.volume.value = new THREE.Vector3(
+            this.material.uniforms.volume.value.x -
+              this.material.uniforms.min_point.value.x,
+            this.material.uniforms.volume.value.y -
+              this.material.uniforms.min_point.value.y,
+            this.material.uniforms.volume.value.z -
+              this.material.uniforms.min_point.value.z
+          );
 
           if (this.interpolate) {
             if (Object.keys(this.f).length === 2)
@@ -336,12 +405,12 @@
         y_fn: current_y,
         z_fn: current_z,
         p: 1,
-        normalize_color: false,
+        normalize_parameters: false,
         color_type: color_type[1],
-        c1: "sqrt(x * x + y * y + z * z)",
-        c2: "1",
-        c3: "1",
-        a: "1",
+        c1: c1_string,
+        c2: c2_string,
+        c3: c3_string,
+        a: a_string,
         solid_color: "#ffffff",
         points: 2000,
         background: "#000000",
@@ -528,7 +597,12 @@
           parametric_curve.recalculate(settings.time);
         });
       const color = p1.addFolder("Color");
-      color.add(settings, "normalize_color").name("Normalize Color (WIP)");
+      color
+        .add(settings, "normalize_parameters")
+        .name("Normalize Parameters")
+        .onChange(() => {
+          material.uniforms.normalize_parameters.value = settings.normalize_parameters;
+        });
       color
         .add(settings, "color_type", color_type)
         .name("Color Type")
