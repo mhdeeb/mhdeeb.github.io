@@ -177,27 +177,17 @@
       // ==========================================================
       const t_limit = 60;
       const base_points = 2000;
+      var c1_string = "sqrt(x * x + y * y + z * z)";
+      var c2_string = "1";
+      var c3_string = "1";
+      var a_string = "1";
 
-      let material = new THREE.ShaderMaterial({
-        uniforms: {
-          solid: { value: false },
-          solid_color: { value: new THREE.Color("#ffffff") },
-          opacity: { value: 1 },
-        },
-        vertexShader: `
+      function frag(c1, c2, c3, a) {
+        return `
             varying vec3 pos;
-
-            void main() {
-              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
-
-              pos = position;
-            }
-            `,
-        fragmentShader: `
-            varying vec3 pos;
-            uniform bool solid;
+            uniform int type;
             uniform vec3 solid_color;
-            uniform float opacity;
+            uniform float time;
 
             vec3 hsv2rgb(vec3 c) {
                 vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -208,18 +198,40 @@
             void main() {
               vec3 vPos = (pos + 1.) * .5;
 
-              float dist = distance(pos, vec3(0., 0., 0.));
-
-              float alpha = opacity;
-
-              if (solid) {
-                gl_FragColor = vec4(solid_color, alpha);
-              } else {
-                vec3 color = hsv2rgb(vec3(dist, 1., 1.));
-                gl_FragColor = vec4(color, alpha);
+              float x = pos.x;
+              float y = pos.y;
+              float z = pos.z;
+              float t = time;
+              
+              if (type == 0) {
+                vec3 color = vec3(${c1}, ${c2}, ${c3});
+                gl_FragColor = vec4(color, ${a});
+              } else if (type == 1) {
+                vec3 color = hsv2rgb(vec3(${c1}, ${c2}, ${c3}));
+                gl_FragColor = vec4(color, ${a});
+              } else if (type == 2) {
+                gl_FragColor = vec4(solid_color, ${a});
               }
             }
+            `;
+      }
+
+      let material = new THREE.ShaderMaterial({
+        uniforms: {
+          type: { value: 1 },
+          solid_color: { value: new THREE.Color("#ffffff") },
+          time: { value: 0 },
+        },
+        vertexShader: `
+            varying vec3 pos;
+
+            void main() {
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
+
+              pos = position;
+            }
             `,
+        fragmentShader: frag(c1_string, c2_string, c3_string, a_string),
         transparent: true,
       });
 
@@ -324,7 +336,7 @@
         y_fn: current_y,
         z_fn: current_z,
         p: 1,
-        normalize_color: true,
+        normalize_color: false,
         color_type: color_type[1],
         c1: "sqrt(x * x + y * y + z * z)",
         c2: "1",
@@ -515,53 +527,80 @@
           parametric_curve.range.end = 2 * Math.PI * settings.p;
           parametric_curve.recalculate(settings.time);
         });
-      const color = p1.addFolder("Color (WIP)");
+      const color = p1.addFolder("Color");
       color.add(settings, "normalize_color").name("Normalize Color (WIP)");
       color
         .add(settings, "color_type", color_type)
-        .name("Color Type (WIP)")
+        .name("Color Type")
         .onChange((value) => {
           if (value === color_type[0]) {
-            c1.name("R(x, y, z, t) (WIP)");
-            c2.name("G(x, y, z, t) (WIP)");
-            c3.name("B(x, y, z, t) (WIP)");
-            material.uniforms.solid.value = false;
+            c1.name("R(x, y, z, t)");
+            c2.name("G(x, y, z, t)");
+            c3.name("B(x, y, z, t)");
             c1.show();
             c2.show();
             c3.show();
             solid_color.hide();
+            material.uniforms.type.value = 0;
           } else if (value === color_type[1]) {
-            c1.name("H(x, y, z, t) (WIP)");
-            c2.name("S(x, y, z, t) (WIP)");
-            c3.name("V(x, y, z, t) (WIP)");
-            material.uniforms.solid.value = false;
+            c1.name("H(x, y, z, t)");
+            c2.name("S(x, y, z, t)");
+            c3.name("V(x, y, z, t)");
             c1.show();
             c2.show();
             c3.show();
             solid_color.hide();
+            material.uniforms.type.value = 1;
           } else {
-            material.uniforms.solid.value = true;
             c1.hide();
             c2.hide();
             c3.hide();
             solid_color.show();
+            material.uniforms.type.value = 2;
           }
         });
       const c1 = color
         .add(settings, "c1")
-        .name("H(x, y, z, t) (WIP)")
+        .name("H(x, y, z, t)")
         .listen()
-        .onFinishChange((value) => {});
+        .onFinishChange((value) => {
+          c1_string = value;
+          material.fragmentShader = frag(
+            c1_string,
+            c2_string,
+            c3_string,
+            a_string
+          );
+          material.needsUpdate = true;
+        });
       const c2 = color
         .add(settings, "c2")
-        .name("S(x, y, z, t) (WIP)")
+        .name("S(x, y, z, t)")
         .listen()
-        .onFinishChange((value) => {});
+        .onFinishChange((value) => {
+          c2_string = value;
+          material.fragmentShader = frag(
+            c1_string,
+            c2_string,
+            c3_string,
+            a_string
+          );
+          material.needsUpdate = true;
+        });
       const c3 = color
         .add(settings, "c3")
-        .name("V(x, y, z, t) (WIP)")
+        .name("V(x, y, z, t)")
         .listen()
-        .onFinishChange((value) => {});
+        .onFinishChange((value) => {
+          c3_string = value;
+          material.fragmentShader = frag(
+            c1_string,
+            c2_string,
+            c3_string,
+            a_string
+          );
+          material.needsUpdate = true;
+        });
       const solid_color = color
         .addColor(settings, "solid_color")
         .name("Color")
@@ -571,8 +610,17 @@
         });
       color
         .add(settings, "a")
-        .name("A(x, y, z, t) (WIP)")
-        .onFinishChange((value) => {});
+        .name("A(x, y, z, t)")
+        .onFinishChange((value) => {
+          a_string = value;
+          material.fragmentShader = frag(
+            c1_string,
+            c2_string,
+            c3_string,
+            a_string
+          );
+          material.needsUpdate = true;
+        });
       const animation = p1.addFolder("Animation");
       animation.add(settings, "animate").name("Animate").listen();
       animation
@@ -583,7 +631,8 @@
         .add(settings, "time", 0, t_limit, 0.01)
         .name("Time")
         .listen()
-        .onChange(() => {
+        .onChange((value) => {
+          material.uniforms.time.value = value;
           parametric_curve.recalculate(settings.time);
         });
       animation.add(settings, "reset").name("Reset");
@@ -655,6 +704,7 @@
         if (settings.animate) {
           settings.time += delta * settings.speed_multiplier;
           if (settings.time > t_limit) settings.time = 0;
+          material.uniforms.time.value = settings.time;
         }
         stats.update();
       }
