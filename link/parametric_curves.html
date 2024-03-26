@@ -91,7 +91,12 @@
 
       let canvas = document.getElementById("canvas");
 
-      let renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
+      let renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        canvas,
+        preserveDrawingBuffer: true,
+        alpha: true,
+      });
 
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -99,6 +104,8 @@
       renderer.setPixelRatio(window.devicePixelRatio);
 
       renderer.setSize(width, height);
+
+      renderer.setClearColor("#000", 1);
 
       const stats = new Stats();
       document.body.appendChild(stats.dom);
@@ -126,12 +133,12 @@
 
         camera.updateProjectionMatrix();
 
+        renderer.setPixelRatio(window.devicePixelRatio);
+
         renderer.setSize(width, height);
       });
 
       let scene = new THREE.Scene();
-
-      scene.background = new THREE.Color("#000");
 
       scene.add(camera);
 
@@ -286,10 +293,9 @@
 
       const color_type = ["rgb", "hsv", "solid"];
       const export_ext = [
-        "png (WIP)",
-        "webp (WIP)",
-        "svg (WIP)",
-        "jpg (WIP)",
+        "png",
+        "webp",
+        "jpg",
         "gif (WIP)",
         "mp4 (WIP)",
         "json",
@@ -309,6 +315,7 @@
         solid_color: "#ffffff",
         points: 2000,
         background: "#000000",
+        background_opacity: 1,
         interpolate_points: true,
         interpolate_multiplier: 1.5,
         reset_advanced: function () {
@@ -336,9 +343,80 @@
         },
         add_curve: function () {},
         export_ext: export_ext[0],
-        transparent_background: false,
         export: function () {
-          if (settings.export_ext === export_ext[6]) {
+          if (settings.export_ext === export_ext[0]) {
+            renderer.domElement.toBlob((blob) => {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.setAttribute(
+                "download",
+                `parametric_curve_${new Date().toISOString()}.png`
+              );
+              a.setAttribute("href", url);
+              a.click();
+              URL.revokeObjectURL(url);
+            });
+          } else if (settings.export_ext === export_ext[1]) {
+            renderer.domElement.toBlob((blob) => {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.setAttribute(
+                "download",
+                `parametric_curve_${new Date().toISOString()}.webp`
+              );
+              a.setAttribute("href", url);
+              a.click();
+              URL.revokeObjectURL(url);
+            }, "image/webp");
+          } else if (settings.export_ext === export_ext[2]) {
+            renderer.domElement.toBlob((blob) => {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.setAttribute(
+                "download",
+                `parametric_curve_${new Date().toISOString()}.jpg`
+              );
+              a.setAttribute("href", url);
+              a.click();
+              URL.revokeObjectURL(url);
+            }, "image/jpeg");
+          } else if (settings.export_ext === export_ext[3]) {
+            renderer.domElement.toBlob((blob) => {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.setAttribute(
+                "download",
+                `parametric_curve_${new Date().toISOString()}.gif`
+              );
+              a.setAttribute("href", url);
+              a.click();
+              URL.revokeObjectURL(url);
+            }, "image/gif");
+          } else if (settings.export_ext === export_ext[4]) {
+            const canvas = renderer.domElement;
+            const stream = canvas.captureStream(60);
+            const recorder = new MediaRecorder(stream, {
+              mimeType: "video/webm",
+            });
+            const chunks = [];
+            recorder.ondataavailable = (e) => chunks.push(e.data);
+            recorder.onstop = (e) => {
+              const blob = new Blob(chunks, { type: "video/webm" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.setAttribute(
+                "download",
+                `parametric_curve_${new Date().toISOString()}.webm`
+              );
+              a.setAttribute("href", url);
+              a.click();
+              URL.revokeObjectURL(url);
+            };
+            recorder.start();
+            setTimeout(() => {
+              recorder.stop();
+            }, 5000);
+          } else if (settings.export_ext === export_ext[5]) {
             const json = gui.save();
             const blob = new Blob([JSON.stringify(json)], {
               type: "application/json",
@@ -532,19 +610,24 @@
       const general = gui.addFolder("General");
       general.add(settings, "add_curve").name("Add Curve (WIP)");
       general.add(settings, "reset_camera").name("Reset Camera");
-      general.addColor(settings, "background").name("Background");
-      const exp = gui.addFolder("Export");
-      exp
-        .add(settings, "export_ext", export_ext)
-        .name("Extension")
-        .onChange((value) => {
-          if (value === export_ext[3] || value === export_ext[6])
-            transparent_background.hide();
-          else transparent_background.show();
+      general
+        .addColor(settings, "background")
+        .name("Background")
+        .listen()
+        .onChange(() => {
+          renderer.setClearColor(
+            settings.background,
+            settings.background_opacity
+          );
         });
-      const transparent_background = exp
-        .add(settings, "transparent_background")
-        .name("Transparent Background (WIP)");
+      general
+        .add(settings, "background_opacity", 0, 1, 0.01)
+        .name("Background Opacity")
+        .onChange((value) => {
+          renderer.setClearColor(settings.background, value);
+        });
+      const exp = gui.addFolder("Export");
+      exp.add(settings, "export_ext", export_ext).name("Extension");
       exp.add(settings, "export").name("Export");
 
       gui.add(settings, "load_graph").name("Load JSON");
@@ -569,7 +652,6 @@
       // ==========================================================
 
       function render() {
-        scene.background = new THREE.Color(settings.background);
         if (settings.animate) {
           try {
             parametric_curve.mesh.geometry =
