@@ -177,7 +177,8 @@
       // ==========================================================
       const t_limit = 60;
       const base_points = 2000;
-      var c1_string = "sqrt(x * x + y * y + z * z)";
+      var c1_string =
+        "4.*sqrt((x-.5) * (x-.5) + (y-.5) * (y-.5) + (z-.5) * (z-.5))  - 10.*t";
       var c2_string = "1";
       var c3_string = "1";
       var a_string = "1";
@@ -242,7 +243,7 @@
           time: { value: 0 },
           min_point: { value: new THREE.Vector3(Infinity, Infinity, Infinity) },
           volume: { value: new THREE.Vector3(-Infinity, -Infinity, -Infinity) },
-          normalize_parameters: { value: false },
+          normalize_parameters: { value: true },
           max_time: { value: t_limit },
         },
         vertexShader: `
@@ -405,7 +406,7 @@
         y_fn: current_y,
         z_fn: current_z,
         p: 1,
-        normalize_parameters: false,
+        normalize_parameters: true,
         color_type: color_type[1],
         c1: c1_string,
         c2: c2_string,
@@ -601,7 +602,8 @@
         .add(settings, "normalize_parameters")
         .name("Normalize Parameters")
         .onChange(() => {
-          material.uniforms.normalize_parameters.value = settings.normalize_parameters;
+          material.uniforms.normalize_parameters.value =
+            settings.normalize_parameters;
         });
       color
         .add(settings, "color_type", color_type)
