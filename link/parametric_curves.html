@@ -606,27 +606,31 @@
           parametric_curve.recalculate(settings.time);
         });
       const time_min = parameters
-        .add(settings, "t_min", 0)
+        .add(settings, "t_min")
         .name("Min Time")
-        .onFinishChange((value) => {
+        .onChange((value) => {
           if (value > settings.t_max) {
             settings.t_max = value;
             time.max(value);
             time_max.updateDisplay();
           }
+        })
+        .onFinishChange((value) => {
           time.min(value);
           material.uniforms.min_time.value = value;
           parametric_curve.recalculate(settings.time);
         });
       const time_max = parameters
-        .add(settings, "t_max", 60)
+        .add(settings, "t_max")
         .name("Max Time")
-        .onFinishChange((value) => {
+        .onChange((value) => {
           if (value < settings.t_min) {
             settings.t_min = value;
             time.min(value);
             time_min.updateDisplay();
           }
+        })
+        .onFinishChange((value) => {
           time.max(value);
           material.uniforms.max_time.value = value;
           parametric_curve.recalculate(settings.time);
