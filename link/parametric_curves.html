@@ -172,6 +172,26 @@
 
       loadingManager.onLoad();
 
+      const gridHelper_x = new THREE.GridHelper(128, 128, 0xff0000, 0xff0000);
+      gridHelper_x.material.transparent = true;
+      gridHelper_x.material.opacity = 0;
+      gridHelper_x.needsUpdate = true;
+      scene.add(gridHelper_x);
+
+      const gridHelper_y = new THREE.GridHelper(128, 128, 0x00ff00, 0x00ff00);
+      gridHelper_y.rotation.z = Math.PI / 2;
+      gridHelper_y.material.transparent = true;
+      gridHelper_y.material.opacity = 0;
+      gridHelper_y.needsUpdate = true;
+      scene.add(gridHelper_y);
+
+      const gridHelper_z = new THREE.GridHelper(128, 128, 0x0000ff, 0x0000ff);
+      gridHelper_z.rotation.x = Math.PI / 2;
+      gridHelper_z.material.transparent = true;
+      gridHelper_z.material.opacity = 0;
+      gridHelper_z.needsUpdate = true;
+      scene.add(gridHelper_z);
+
       // ==========================================================
       // ======================== Relevant Code ===================
       // ==========================================================
@@ -424,6 +444,10 @@
         points: 2000,
         background: "#000000",
         background_opacity: 1,
+        grid_helper: 0,
+        x_grid: true,
+        y_grid: true,
+        z_grid: true,
         interpolate_points: true,
         interpolate_multiplier: 1.5,
         reset_advanced: function () {
@@ -797,6 +821,35 @@
         .name("Background Opacity")
         .onChange((value) => {
           renderer.setClearColor(settings.background, value);
+        });
+      general
+        .add(settings, "grid_helper", 0, 1, 0.01)
+        .name("Grid Opacity")
+        .onChange((value) => {
+          gridHelper_x.material.opacity = value;
+          gridHelper_x.material.needsUpdate = true;
+          gridHelper_y.material.opacity = value;
+          gridHelper_y.material.needsUpdate = true;
+          gridHelper_z.material.opacity = value;
+          gridHelper_z.material.needsUpdate = true;
+        });
+      general
+        .add(settings, "x_grid")
+        .name("X Grid")
+        .onChange((value) => {
+          gridHelper_x.visible = value;
+        });
+      general
+        .add(settings, "y_grid")
+        .name("Y Grid")
+        .onChange((value) => {
+          gridHelper_y.visible = value;
+        });
+      general
+        .add(settings, "z_grid")
+        .name("Z Grid")
+        .onChange((value) => {
+          gridHelper_z.visible = value;
         });
       const exp = gui.addFolder("Export");
       exp.add(settings, "export_ext", export_ext).name("Extension");
