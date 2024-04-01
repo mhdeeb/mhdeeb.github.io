@@ -64,6 +64,7 @@
       import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/controls/OrbitControls.js";
       import { Parser } from "https://cdn.jsdelivr.net/npm/expr-eval@2.0.2/+esm";
       import lilGui from "https://cdn.jsdelivr.net/npm/lil-gui@0.19.2/+esm";
+      import { ParametricGeometry } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/geometries/ParametricGeometry.js";
 
       const progressBar = document.getElementById("progress-bar");
       const progressLabel = document.getElementById("progress-label");
@@ -174,23 +175,35 @@
 
       const gridHelper_x = new THREE.GridHelper(128, 128, 0xff0000, 0xff0000);
       gridHelper_x.material.transparent = true;
-      gridHelper_x.material.opacity = 0;
+      gridHelper_x.material.opacity = 0.2;
       gridHelper_x.needsUpdate = true;
       scene.add(gridHelper_x);
 
       const gridHelper_y = new THREE.GridHelper(128, 128, 0x00ff00, 0x00ff00);
       gridHelper_y.rotation.z = Math.PI / 2;
       gridHelper_y.material.transparent = true;
-      gridHelper_y.material.opacity = 0;
+      gridHelper_y.material.opacity = 0.2;
       gridHelper_y.needsUpdate = true;
       scene.add(gridHelper_y);
 
       const gridHelper_z = new THREE.GridHelper(128, 128, 0x0000ff, 0x0000ff);
       gridHelper_z.rotation.x = Math.PI / 2;
       gridHelper_z.material.transparent = true;
-      gridHelper_z.material.opacity = 0;
+      gridHelper_z.material.opacity = 0.2;
       gridHelper_z.needsUpdate = true;
       scene.add(gridHelper_z);
+
+      gridHelper_x.visible = false;
+      gridHelper_y.visible = false;
+      gridHelper_z.visible = false;
+
+      window.addEventListener("keydown", function (event) {
+        switch (event.code) {
+          case "KeyT":
+            grid_toggle.setValue(!grid_toggle.getValue());
+            break;
+        }
+      });
 
       // ==========================================================
       // ======================== Relevant Code ===================
@@ -203,62 +216,72 @@
       var c3_string = "1";
       var a_string = "1";
 
+      const vertexShader = `
+             varying vec3 pos;
+
+             void main() {
+               gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
+
+               pos = position;
+             }
+             `;
+
       function frag(c1, c2, c3, a) {
         return `
-            varying vec3 pos;
-            uniform int type;
-            uniform vec3 solid_color;
-            uniform float time;
-            uniform float max_time;
-            uniform float min_time;
-            uniform vec3 min_point;
-            uniform vec3 volume;
-            uniform bool normalize_parameters;
+             varying vec3 pos;
+             uniform int type;
+             uniform vec3 solid_color;
+             uniform float time;
+             uniform float max_time;
+             uniform float min_time;
+             uniform vec3 min_point;
+             uniform vec3 volume;
+             uniform bool normalize_parameters;
 
-            const float PI = 3.14159265359;
+             const float PI = 3.14159265359;
 
-            vec3 hsv2rgb(vec3 c) {
-                vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-                vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-                return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-            }
+             vec3 hsv2rgb(vec3 c) {
+                 vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                 vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+                 return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+             }
 
-            void main() {
-              float x = pos.x;
-              float y = pos.y;
-              float z = pos.z;
-              float t = time;
+             void main() {
+               float x = pos.x;
+               float y = pos.y;
+               float z = pos.z;
+               float t = time;
 
-              if (normalize_parameters) {
-                float vx = volume.x;
-                float vy = volume.y;
-                float vz = volume.z;
-                float vt = max_time - min_time;
+               if (normalize_parameters) {
+                 float vx = volume.x;
+                 float vy = volume.y;
+                 float vz = volume.z;
+                 float vt = max_time - min_time;
 
-                if (vx == 0.0) vx = 1.0;
-                if (vy == 0.0) vy = 1.0;
-                if (vz == 0.0) vz = 1.0;
-                if (vt == 0.0) vt = 1.0;
+                 if (vx == 0.0) vx = 1.0;
+                 if (vy == 0.0) vy = 1.0;
+                 if (vz == 0.0) vz = 1.0;
+                 if (vt == 0.0) vt = 1.0;
 
-                x = (x - min_point.x) / vx;
-                y = (y - min_point.y) / vy;
-                z = (z - min_point.z) / vz;
+                 x = (x - min_point.x) / vx;
+                 y = (y - min_point.y) / vy;
+                 z = (z - min_point.z) / vz;
 
 
-                t = (time - min_time) / vt;
-              }
+                 t = (time - min_time) / vt;
+               }
 
-              if (type == 0) {
-                vec3 color = vec3(${c1}, ${c2}, ${c3});
-                gl_FragColor = vec4(color, ${a});
-              } else if (type == 1) {
-                vec3 color = hsv2rgb(vec3(${c1}, ${c2}, ${c3}));
-                gl_FragColor = vec4(color, ${a});
-              } else if (type == 2) {
-                gl_FragColor = vec4(solid_color, ${a});
-              }
-            }
-            `;
+               if (type == 0) {
+                 vec3 color = vec3(${c1}, ${c2}, ${c3});
+                 gl_FragColor = vec4(color, ${a});
+               } else if (type == 1) {
+                 vec3 color = hsv2rgb(vec3(${c1}, ${c2}, ${c3}));
+                 gl_FragColor = vec4(color, ${a});
+               } else if (type == 2) {
+                 gl_FragColor = vec4(solid_color, ${a});
+               }
+             }
+             `;
       }
 
       let material = new THREE.ShaderMaterial({
@@ -272,17 +295,10 @@
           max_time: { value: t_limit },
           min_time: { value: 0 },
         },
-        vertexShader: `
-            varying vec3 pos;
-
-            void main() {
-              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
-
-              pos = position;
-            }
-            `,
+        vertexShader: vertexShader,
         fragmentShader: frag(c1_string, c2_string, c3_string, a_string),
         transparent: true,
+        side: THREE.DoubleSide,
       });
 
       class ParametricCurve {
@@ -444,7 +460,8 @@
         points: 2000,
         background: "#000000",
         background_opacity: 1,
-        grid_helper: 0,
+        toggle_grid: false,
+        grid_helper: 0.2,
         x_grid: true,
         y_grid: true,
         z_grid: true,
@@ -571,6 +588,7 @@
           input.click();
         },
       };
+      const coordinates = gui.addFolder("Coordinates (WIP)");
       const p1 = gui.addFolder("Parametric 1");
       const functions = p1.addFolder("Functions");
       functions
@@ -803,6 +821,64 @@
         });
       advanced.add(settings, "reset_advanced").name("Reset");
       p1.add(settings, "delete_curve").name("Delete Curve (WIP)");
+      const grid = gui.addFolder("Grid (WIP)");
+      const grid_toggle = grid
+        .add(settings, "toggle_grid")
+        .name("Toggle Grid")
+        .onChange((value) => {
+          if (value) {
+            grid_opacity.enable();
+            x_grid.enable();
+            y_grid.enable();
+            z_grid.enable();
+
+            gridHelper_x.visible = settings.x_grid;
+            gridHelper_y.visible = settings.y_grid;
+            gridHelper_z.visible = settings.z_grid;
+          } else {
+            grid_opacity.disable();
+            x_grid.disable();
+            y_grid.disable();
+            z_grid.disable();
+
+            gridHelper_x.visible = false;
+            gridHelper_y.visible = false;
+            gridHelper_z.visible = false;
+          }
+        });
+      const grid_opacity = grid
+        .add(settings, "grid_helper", 0, 1, 0.01)
+        .name("Grid Opacity")
+        .onChange((value) => {
+          gridHelper_x.material.opacity = value;
+          gridHelper_x.material.needsUpdate = true;
+          gridHelper_y.material.opacity = value;
+          gridHelper_y.material.needsUpdate = true;
+          gridHelper_z.material.opacity = value;
+          gridHelper_z.material.needsUpdate = true;
+        });
+      const x_grid = grid
+        .add(settings, "x_grid")
+        .name("X Grid")
+        .onChange((value) => {
+          gridHelper_x.visible = value;
+        });
+      const y_grid = grid
+        .add(settings, "y_grid")
+        .name("Y Grid")
+        .onChange((value) => {
+          gridHelper_y.visible = value;
+        });
+      const z_grid = grid
+        .add(settings, "z_grid")
+        .name("Z Grid")
+        .onChange((value) => {
+          gridHelper_z.visible = value;
+        });
+      grid_opacity.disable();
+      x_grid.disable();
+      y_grid.disable();
+      z_grid.disable();
       const general = gui.addFolder("General");
       general.add(settings, "add_curve").name("Add Curve (WIP)");
       general.add(settings, "reset_camera").name("Reset Camera");
@@ -822,35 +898,6 @@
         .onChange((value) => {
           renderer.setClearColor(settings.background, value);
         });
-      general
-        .add(settings, "grid_helper", 0, 1, 0.01)
-        .name("Grid Opacity")
-        .onChange((value) => {
-          gridHelper_x.material.opacity = value;
-          gridHelper_x.material.needsUpdate = true;
-          gridHelper_y.material.opacity = value;
-          gridHelper_y.material.needsUpdate = true;
-          gridHelper_z.material.opacity = value;
-          gridHelper_z.material.needsUpdate = true;
-        });
-      general
-        .add(settings, "x_grid")
-        .name("X Grid")
-        .onChange((value) => {
-          gridHelper_x.visible = value;
-        });
-      general
-        .add(settings, "y_grid")
-        .name("Y Grid")
-        .onChange((value) => {
-          gridHelper_y.visible = value;
-        });
-      general
-        .add(settings, "z_grid")
-        .name("Z Grid")
-        .onChange((value) => {
-          gridHelper_z.visible = value;
-        });
       const exp = gui.addFolder("Export");
       exp.add(settings, "export_ext", export_ext).name("Extension");
       const export_button = exp.add(settings, "export").name("Export");
@@ -859,11 +906,14 @@
 
       const load_button = gui.add(settings, "load_graph").name("Load JSON");
 
+      coordinates.close();
       parameters.close();
       color.close();
       advanced.close();
+      grid.close();
       exp.close();
       record.close();
+      gui.close();
 
       // ==========================================================
 
@@ -885,9 +935,7 @@
       function render() {
         if (settings.animate) {
           try {
-            parametric_curve.mesh.geometry =
-              parametric_curve.construct_geometry(settings.time);
-            parametric_curve.mesh.geometry.needsUpdate = true;
+            if (!parametric_curve.recalculate(settings.time)) throw new Error();
           } catch (e) {
             settings.x_fn = current_x;
             settings.y_fn = current_y;
@@ -922,3 +970,175 @@
     </script>
   </body>
 </html>
+
+<!-- WIP
+  class GridGeometry {
+    constructor({ size, divisions, x, y, z }) {
+      this.size = size;
+      this.divisions = divisions;
+      this.x = x;
+      this.y = y;
+      this.z = z;
+      this.geometry = new THREE.BufferGeometry();
+      this.material = new THREE.LineBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.2,
+      });
+      this.mesh = new THREE.LineSegments(this.geometry, this.material);
+      this.construct_geometry();
+    }
+
+    construct_geometry() {
+      let points1 = [];
+      let points2 = [];
+      let points3 = [];
+      let step = this.size / this.divisions;
+      for (let i = -this.size; i <= this.size; i += step)
+        for (let j = -this.size; j <= this.size; j += step)
+          for (let k = -this.size; k <= this.size; k += step) {
+            points1.push(this.x(i, j, k));
+            points2.push(this.y(i, j, k));
+            points3.push(this.z(i, j, k));
+          }
+      this.geometry.setFromPoints(points1);
+      this.geometry.setFromPoints(points2);
+      this.geometry.setFromPoints(points3);
+    }
+  }
+
+  function frag2() {
+  return `
+   varying vec3 pos;
+   uniform vec3 min_point;
+   uniform vec3 volume;
+   uniform vec3 solid_color;
+   uniform float a;
+   uniform float sa;
+   uniform float line_width;
+   uniform float divisions;
+
+   float function(float x, float smoothness, float gap, float divisions) {
+     float edge1 = 0.5 - gap / 2.0 - smoothness;
+     float edge2 = edge1 + smoothness;
+     float edge3 = edge2 + gap;
+     float edge4 = edge3 + smoothness;
+     x = fract(divisions*x);
+
+     return smoothstep(edge1, edge2, x)
+             * (step(edge1, x) - step(edge3, x))
+             + (1.0 - smoothstep(edge3, edge4, x))
+             * (step(edge3, x) - step(edge4, x));
+   }
+
+   void main() {
+     float x = pos.x;
+     float y = pos.y;
+     float z = pos.z;
+
+     float smoothness = line_width * 0.1;
+
+     float vx = volume.x;
+     float vy = volume.y;
+     float vz = volume.z;
+
+     if (vx == 0.0) vx = 1.0;
+     if (vy == 0.0) vy = 1.0;
+     if (vz == 0.0) vz = 1.0;
+
+     x = (x - min_point.x) / vx;
+     y = (y - min_point.y) / vy;
+     z = (z - min_point.z) / vz;
+
+     float v1 = function(x - 0.5, smoothness, line_width - smoothness, divisions);
+     float v2 = function(y - 0.5, smoothness, line_width - smoothness, divisions);
+     float v3 = function(z - 0.5, smoothness, line_width - smoothness, divisions);
+
+     bool vv1 = v1 > 0.0;
+     bool vv2 = v2 > 0.0;
+     bool vv3 = v3 > 0.0;
+
+     if (vv1 || vv2 || vv3) {
+       gl_FragColor = vec4(vv1, vv2, vv3, a * (v1 + v2 + v3) / 3.0);
+     } else {
+       gl_FragColor = vec4(solid_color, sa);
+     }
+   }
+  `;
+}
+
+function func(x, y, z) {
+  return (u, v, target) => {
+    u = 2 * (u - 0.5);
+    v = 2 * (v - 0.5);
+    let X = x(u, v);
+    let Y = y(u, v);
+    let Z = z(u, v);
+    target.set(X, Y, Z);
+  };
+}
+
+const testMat = new THREE.ShaderMaterial({
+  uniforms: {
+    solid_color: { value: new THREE.Color("#ffffff") },
+    min_point: { value: new THREE.Vector3(Infinity, Infinity, Infinity) },
+    volume: { value: new THREE.Vector3(-Infinity, -Infinity, -Infinity) },
+    a: { value: 1.0 },
+    sa: { value: 0.02 },
+    divisions: { value: 10 },
+    line_width: { value: 0.05 },
+  },
+  vertexShader: vertexShader,
+  fragmentShader: frag2(),
+  transparent: true,
+  side: THREE.DoubleSide,
+  depthTest: false,
+});
+
+var surfaces = {
+  r: {
+    x: `sin(PI*u)*cos(PI*v/2)`,
+    y: `sin(PI*u)*sin(PI*v/2)`,
+    z: `cos(PI*u)`,
+  },
+  theta: {
+    x: `u*cos(PI*v/2)`,
+    y: `u*sin(PI*v/2)`,
+    z: `0`,
+  },
+  phi: {
+    x: `u*sin(PI*v/2)`,
+    y: `0`,
+    z: `u*cos(PI*v/2)`,
+  },
+};
+
+for (let [
+  name,
+  { x: current_x, y: current_y, z: current_z },
+] of Object.entries(surfaces)) {
+  var current_x_fn = Parser.parse(current_x).toJSFunction(["u", "v"]);
+  var current_y_fn = Parser.parse(current_y).toJSFunction(["u", "v"]);
+  var current_z_fn = Parser.parse(current_z).toJSFunction(["u", "v"]);
+
+  const testGeo = new ParametricGeometry(
+    func(current_x_fn, current_y_fn, current_z_fn),
+    128,
+    128,
+    128
+  );
+
+  const testMesh = new THREE.Mesh(testGeo, testMat.clone());
+
+  testMesh.geometry.computeBoundingBox();
+
+  testMesh.material.uniforms.min_point.value.copy(
+    testMesh.geometry.boundingBox.min
+  );
+
+  testMesh.material.uniforms.volume.value.copy(
+    testMesh.geometry.boundingBox.max
+  );
+
+  scene.add(testMesh);
+} -->
