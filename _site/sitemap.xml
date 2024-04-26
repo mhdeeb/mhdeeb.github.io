@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url>
+<loc>http://localhost:4000/</loc>
+</url>
+<url>
+<loc>http://localhost:4000/link/LJ3.pdf</loc>
+<lastmod>2024-03-19T16:23:49+02:00</lastmod>
+</url>
+<url>
+<loc>http://localhost:4000/link/LJ4.html</loc>
+<lastmod>2024-03-19T16:23:49+02:00</lastmod>
+</url>
+<url>
+<loc>http://localhost:4000/link/PA6.html</loc>
+<lastmod>2024-03-19T16:23:49+02:00</lastmod>
+</url>
+<url>
+<loc>http://localhost:4000/link/PA7.html</loc>
+<lastmod>2024-03-22T01:53:24+02:00</lastmod>
+</url>
+<url>
+<loc>http://localhost:4000/link/</loc>
+<lastmod>2024-04-15T08:48:58+02:00</lastmod>
+</url>
+<url>
+<loc>http://localhost:4000/link/parametric_curves.html</loc>
+<lastmod>2024-04-01T08:22:21+02:00</lastmod>
+</url>
+<url>
+<loc>http://localhost:4000/link/test.html</loc>
+<lastmod>2024-04-07T04:01:46+02:00</lastmod>
+</url>
+</urlset>

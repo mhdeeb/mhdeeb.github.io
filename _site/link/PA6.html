@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!-- this attribute specifies the language of the document -->
+  <head>
+    <meta charset="UTF-8" />
+    <!-- this meta tag is used to specify the character encoding for the HTML document -->
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
+    />
+    <!-- this meta tag is used to make the content of the page responsive to the size of the device's screen -->
+    <title>CS4406 Computer Graphics - Assignment #6</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.min.js"
+        }
+      }
+    </script>
+    <!-- this script tag is used to import the dat.gui library -->
+
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+      }
+
+      .progress-bar-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+      }
+
+      #progress-bar {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 50%;
+      }
+
+      label {
+        position: absolute;
+        top: 55%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="progress-bar-container">
+      <label id="progress-label" for="progress-bar">Loading...</label>
+      <progress id="progress-bar" value="0" max="100"></progress>
+    </div>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+      import * as THREE from "three";
+      import Stats from "https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js";
+      import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/controls/OrbitControls.js";
+      // import the necessary modules from the three.js library
+
+      const progressBar = document.getElementById("progress-bar");
+      const progressLabel = document.getElementById("progress-label");
+
+      const loadingManager = new THREE.LoadingManager();
+
+      loadingManager.onLoad = function () {
+        document.querySelector(".progress-bar-container").style.display =
+          "none";
+      };
+
+      loadingManager.onProgress = function (url, itemsLoaded, itemsTotal) {
+        progressBar.value = (itemsLoaded / itemsTotal) * 100;
+        progressLabel.textContent = `Loaded ${itemsLoaded} of ${itemsTotal} files.`;
+      };
+
+      loadingManager.onError = function (url) {
+        console.log("There was an error loading " + url);
+      };
+
+      const gui = new dat.GUI();
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      let canvas = document.getElementById("canvas"); // get the canvas element from the document
+
+      let renderer = new THREE.WebGLRenderer({ antialias: true, canvas }); // antialiasing is a technique used to improve the quality of the image produced by the renderer
+
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap; // default
+
+      renderer.setPixelRatio(window.devicePixelRatio); // this insures that the quality of the image produced by the renderer is consistent across different devices.
+
+      renderer.setSize(width, height); // set the size of the renderer to the size of the window
+
+      const stats = new Stats(); // create a stats object
+      document.body.appendChild(stats.dom); // add the stats object to the body of the document
+      let fov = 45;
+      let camera = new THREE.PerspectiveCamera(fov, width / height, 1, 2000); // create a perspective camera with a 45 degree field of view, an aspect ratio of the window's aspect ratio, a near clipping plane of 1, and a far clipping plane of 100
+
+      let controls = new OrbitControls(camera, renderer.domElement);
+
+      let distance = 70;
+      let boundingHeight = Math.tan((fov * (Math.PI / 180)) / 2) * distance;
+      let boundingWidth = boundingHeight * (width / height);
+
+      camera.position.x = 150;
+      camera.position.y = 50;
+
+      camera.position.x /= 1.2;
+      camera.position.y /= 1.2;
+
+      camera.position.applyMatrix4(
+        new THREE.Matrix4().makeRotationY(-Math.PI / 8)
+      );
+
+      camera.lookAt(0, 0, 0);
+
+      controls.saveState();
+
+      window.addEventListener("resize", () => {
+        width = window.innerWidth;
+        height = window.innerHeight;
+
+        boundingHeight = Math.tan((fov * (Math.PI / 180)) / 2) * distance;
+        boundingWidth = boundingHeight * (width / height);
+
+        camera.aspect = width / height;
+
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(width, height);
+      }); // this event listener will update the camera's aspect ratio and the renderer's size when the window is resized
+
+      let scene = new THREE.Scene();
+
+      scene.background = new THREE.Color("#000000"); // set the background color
+
+      scene.add(camera);
+
+      const textureLoader = new THREE.TextureLoader(loadingManager);
+
+      // ==========================================================
+      // ======================== Relevant Code ===================
+      // ==========================================================
+      // Does the assignment include a sphere geometry textured as the earth? (Yes/No)
+      // Does the assignment include a sphere geometry textured as the moon? (Yes/No)
+      // Does the assignment include a light source to the right of the viewport that illuminates the earth and moon as the sun would? (Yes/No)
+      // Does the earth rotate on its axis? (Yes/No)
+      // Does the moon rotate on its axis? (yes/no)
+      // Does the moon rotate in an orbit around the earth? (Yes/No)
+      // Was the JavaScript / Three.js code well documented (Scale of 1-4 where 1 is no comments and 4 is comprehensive comments)
+
+      // =========================== GUI ==========================
+
+      // ========================== LIGHT =========================
+
+      let lightColor = "white"; // set the color of the light source
+
+      let sun = new THREE.DirectionalLight(lightColor); // create a light source
+
+      sun.castShadow = true; // enable shadow casting
+
+      sun.shadow.mapSize.width = 1024; // default
+      sun.shadow.mapSize.height = 1024; // default
+      sun.shadow.camera.near = 0.5; // default
+      sun.shadow.camera.far = 200; // default
+      sun.shadow.camera.left = -10;
+      sun.shadow.camera.right = 10;
+      sun.shadow.camera.top = 10;
+      sun.shadow.camera.bottom = -10;
+
+      scene.add(sun); // add the light source to the scene
+
+      // let ambient = new THREE.AmbientLight(0x404040);
+      // scene.add(ambient);
+
+      // ===================== SUN =====================
+
+      let sun_geometry = new THREE.SphereGeometry(10, 64, 64); // create a sphere geometry for the sun
+
+      let sun_material = new THREE.MeshBasicMaterial(); // create a material for the sun
+
+      let sun_mesh = new THREE.Mesh(sun_geometry, sun_material); // create a mesh for the sun
+
+      sun.add(sun_mesh);
+
+      textureLoader.load(
+        "https://upload.wikimedia.org/wikipedia/commons/9/99/Map_of_the_full_sun.jpg",
+        function (texture) {
+          sun_material.map = texture;
+
+          sun_material.needsUpdate = true;
+        }
+      ); // load the texture for the sun
+
+      // ========================== EARTH =========================
+
+      let earth_material = new THREE.MeshPhongMaterial({
+        shininess: 100,
+      });
+
+      let earth_geometry = new THREE.SphereGeometry(4, 64, 64); // create a sphere geometry for the earth
+
+      var earth = new THREE.Mesh(earth_geometry, earth_material); // create a mesh for the earth
+
+      earth.castShadow = true; // enable shadow casting
+      earth.receiveShadow = true; // enable shadow receiving
+
+      earth.position.set(0, 0, -50); // set the position of the earth
+
+      sun.add(earth); // add the earth to the scene
+
+      sun.target = earth; // set the target of the light source to the earth
+
+      textureLoader.load(
+        "https://upload.wikimedia.org/wikipedia/commons/c/cf/WorldMap-A_non-Frame.png",
+        function (texture) {
+          earth_material.map = texture;
+
+          earth_material.needsUpdate = true;
+        }
+      ); // load the texture for the earth
+
+      // ========================== MOON ==========================
+
+      let moon_material = new THREE.MeshPhongMaterial({
+        shininess: 100,
+      });
+
+      let moon_geometry = new THREE.SphereGeometry(1, 64, 64); // create a sphere geometry for the moon
+
+      var moon = new THREE.Mesh(moon_geometry, moon_material); // create a mesh for the moon
+
+      moon.castShadow = true; // enable shadow casting
+      moon.receiveShadow = true; // enable shadow receiving
+
+      moon.position.set(0, 0, 10); // set the position of the moon
+
+      earth.add(moon); // add the moon to the scene
+
+      textureLoader.load(
+        "https://upload.wikimedia.org/wikipedia/commons/d/db/Moonmap_from_clementine_data.png",
+        function (texture) {
+          moon_material.map = texture;
+
+          moon_material.needsUpdate = true;
+        }
+      ); // load the texture for the moon
+
+      // ==========================================================
+
+      // ========================== Sky ===========================
+
+      let sky_material = new THREE.MeshBasicMaterial({
+        side: THREE.BackSide,
+      }); // create a material for the sky
+
+      let sky_geometry = new THREE.SphereGeometry(1000, 128, 128); // create a sphere geometry for the sky
+
+      var sky = new THREE.Mesh(sky_geometry, sky_material); // create a mesh for the sky
+
+      scene.add(sky); // add the sky to the scene
+
+      textureLoader.load(
+        "https://mhdeeb.github.io/img/hiptyc_2020_4k.png",
+        function (texture) {
+          sky_material.map = texture;
+
+          sky.material.needsUpdate = true;
+        }
+      ); // load the texture for the sky
+
+      // ========================= SETTINGS =======================
+
+      let settings = {
+        speed: 1,
+        reset: function () {
+          settings.speed = 1;
+          earth.position.set(0, 0, -50);
+          moon.position.set(0, 0, 10);
+          controls.reset();
+        },
+      }; // create a settings object
+
+      gui.add(settings, "speed", 0, 20).name("Speed Multiplier"); // add a slider to the gui to control the speed of the sun's rotation
+      gui.add(settings, "reset").name("Reset"); // add a button to the gui to reset the settings
+
+      // ==========================================================
+
+      function update() {
+        const earth_rotation_speed = (settings.speed * 2 * Math.PI) / 60;
+        const earth_orbit_speed = earth_rotation_speed / 365;
+        const moon_rotation_speed = earth_rotation_speed / 30;
+        const moon_orbit_speed = moon_rotation_speed;
+        const sun_rotation_speed = earth_rotation_speed / 28;
+
+        // rotate the earth on its axis of angle of 23.5 degrees
+        earth.geometry.applyMatrix4(
+          new THREE.Matrix4().makeRotationAxis(
+            new THREE.Vector3(0.39874907, 0.91706007, 0),
+            earth_rotation_speed
+          )
+        );
+
+        // rotate the moon on its axis of angle of 6.68 degrees
+        let rotation2 = new THREE.Matrix4().makeRotationAxis(
+          new THREE.Vector3(0.11632405, 0.99321131, 0),
+          moon_rotation_speed
+        );
+        moon.geometry.applyMatrix4(rotation2);
+
+        // rotate the moon in an orbit around the earth
+
+        moon.position.applyMatrix4(
+          new THREE.Matrix4().makeRotationY(moon_orbit_speed)
+        );
+
+        // rotate the earth in an orbit around the sun
+
+        earth.position.applyMatrix4(
+          new THREE.Matrix4().makeRotationY(earth_orbit_speed)
+        );
+
+        sun_mesh.rotateOnAxis(new THREE.Vector3(0, 1, 0), sun_rotation_speed);
+      }
+
+      // ==========================================================
+      // ======================== End Relevant Code ===============
+      // ==========================================================
+
+      function render() {
+        renderer.render(scene, camera); // render the scene from the perspective of the camera
+      }
+
+      function animate() {
+        gui.updateDisplay();
+        update(); // update the pentagon's rotation
+        render(); // render the scene
+        stats.update(); // update the stats
+        requestAnimationFrame(animate); // request the next frame
+      }
+
+      animate(); // start the animation
+    </script>
+  </body>
+</html>

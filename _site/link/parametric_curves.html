@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
+    />
+    <title>Parametric graphs</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.min.js"
+        }
+      }
+    </script>
+
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+      }
+
+      .progress-bar-container {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+      }
+
+      #progress-bar {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 50%;
+      }
+
+      .progress-bar-container label {
+        position: absolute;
+        top: 55%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+      }
+
+      .lil-gui {
+        --width: 400px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="progress-bar-container">
+      <label id="progress-label" for="progress-bar">Loading...</label>
+      <progress id="progress-bar" value="0" max="100"></progress>
+    </div>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+      import * as THREE from "three";
+      import Stats from "https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js";
+      import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/controls/OrbitControls.js";
+      import { Parser } from "https://cdn.jsdelivr.net/npm/expr-eval@2.0.2/+esm";
+      import lilGui from "https://cdn.jsdelivr.net/npm/lil-gui@0.19.2/+esm";
+      import { ParametricGeometry } from "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/geometries/ParametricGeometry.js";
+
+      const progressBar = document.getElementById("progress-bar");
+      const progressLabel = document.getElementById("progress-label");
+
+      const loadingManager = new THREE.LoadingManager();
+
+      loadingManager.onLoad = function () {
+        document.querySelector(".progress-bar-container").style.display =
+          "none";
+      };
+
+      loadingManager.onProgress = function (url, itemsLoaded, itemsTotal) {
+        progressBar.value = (itemsLoaded / itemsTotal) * 100;
+        progressLabel.textContent = `Loaded ${itemsLoaded} of ${itemsTotal} files.`;
+      };
+
+      loadingManager.onError = function (url) {
+        console.log("There was an error loading " + url);
+      };
+
+      const gui = new lilGui();
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+
+      let canvas = document.getElementById("canvas");
+
+      let renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        canvas,
+        preserveDrawingBuffer: true,
+        alpha: true,
+      });
+
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      renderer.setPixelRatio(window.devicePixelRatio);
+
+      renderer.setSize(width, height);
+
+      renderer.setClearColor("#000", 1);
+
+      const stream = canvas.captureStream(0);
+      const track = stream.getVideoTracks()[0];
+      if (!track.requestFrame) {
+        track.requestFrame = () => stream.requestFrame();
+      }
+      const recorder = new MediaRecorder(stream, {
+        mimeType: "video/webm",
+      });
+      var chunks = [];
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = (e) => {
+        const blob = new Blob(chunks, { type: "video/webm" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.setAttribute(
+          "download",
+          `parametric_curve_${new Date().toISOString()}.webm`
+        );
+        a.setAttribute("href", url);
+        a.click();
+        URL.revokeObjectURL(url);
+        chunks = [];
+      };
+
+      const stats = new Stats();
+      document.body.appendChild(stats.dom);
+      let fov = 45;
+      let camera = new THREE.PerspectiveCamera(fov, width / height, 0.1, 100);
+
+      camera.position.set(0, 0, 5);
+
+      let controls = new OrbitControls(camera, renderer.domElement);
+
+      let distance = 70;
+      let boundingHeight = Math.tan((fov * (Math.PI / 180)) / 2) * distance;
+      let boundingWidth = boundingHeight * (width / height);
+
+      controls.saveState();
+
+      window.addEventListener("resize", () => {
+        width = window.innerWidth;
+        height = window.innerHeight;
+
+        boundingHeight = Math.tan((fov * (Math.PI / 180)) / 2) * distance;
+        boundingWidth = boundingHeight * (width / height);
+
+        camera.aspect = width / height;
+
+        camera.updateProjectionMatrix();
+
+        renderer.setPixelRatio(window.devicePixelRatio);
+
+        renderer.setSize(width, height);
+      });
+
+      let scene = new THREE.Scene();
+
+      scene.add(camera);
+
+      let clock = new THREE.Clock();
+
+      const textureLoader = new THREE.TextureLoader(loadingManager);
+
+      loadingManager.onLoad();
+
+      const gridHelper_x = new THREE.GridHelper(128, 128, 0xff0000, 0xff0000);
+      gridHelper_x.material.transparent = true;
+      gridHelper_x.material.opacity = 0.2;
+      gridHelper_x.needsUpdate = true;
+      scene.add(gridHelper_x);
+
+      const gridHelper_y = new THREE.GridHelper(128, 128, 0x00ff00, 0x00ff00);
+      gridHelper_y.rotation.z = Math.PI / 2;
+      gridHelper_y.material.transparent = true;
+      gridHelper_y.material.opacity = 0.2;
+      gridHelper_y.needsUpdate = true;
+      scene.add(gridHelper_y);
+
+      const gridHelper_z = new THREE.GridHelper(128, 128, 0x0000ff, 0x0000ff);
+      gridHelper_z.rotation.x = Math.PI / 2;
+      gridHelper_z.material.transparent = true;
+      gridHelper_z.material.opacity = 0.2;
+      gridHelper_z.needsUpdate = true;
+      scene.add(gridHelper_z);
+
+      gridHelper_x.visible = false;
+      gridHelper_y.visible = false;
+      gridHelper_z.visible = false;
+
+      window.addEventListener("keydown", function (event) {
+        switch (event.code) {
+          case "KeyT":
+            grid_toggle.setValue(!grid_toggle.getValue());
+            break;
+        }
+      });
+
+      // ==========================================================
+      // ======================== Relevant Code ===================
+      // ==========================================================
+      const t_limit = 60;
+      const base_points = 2000;
+      var c1_string =
+        "4.*sqrt((x-.5) * (x-.5) + (y-.5) * (y-.5) + (z-.5) * (z-.5))  - 10.*t";
+      var c2_string = "1";
+      var c3_string = "1";
+      var a_string = "1";
+
+      const vertexShader = `
+             varying vec3 pos;
+
+             void main() {
+               gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
+
+               pos = position;
+             }
+             `;
+
+      function frag(c1, c2, c3, a) {
+        return `
+             varying vec3 pos;
+             uniform int type;
+             uniform vec3 solid_color;
+             uniform float time;
+             uniform float max_time;
+             uniform float min_time;
+             uniform vec3 min_point;
+             uniform vec3 volume;
+             uniform bool normalize_parameters;
+
+             const float PI = 3.14159265359;
+
+             vec3 hsv2rgb(vec3 c) {
+                 vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                 vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+                 return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+             }
+
+             void main() {
+               float x = pos.x;
+               float y = pos.y;
+               float z = pos.z;
+               float t = time;
+
+               if (normalize_parameters) {
+                 float vx = volume.x;
+                 float vy = volume.y;
+                 float vz = volume.z;
+                 float vt = max_time - min_time;
+
+                 if (vx == 0.0) vx = 1.0;
+                 if (vy == 0.0) vy = 1.0;
+                 if (vz == 0.0) vz = 1.0;
+                 if (vt == 0.0) vt = 1.0;
+
+                 x = (x - min_point.x) / vx;
+                 y = (y - min_point.y) / vy;
+                 z = (z - min_point.z) / vz;
+
+
+                 t = (time - min_time) / vt;
+               }
+
+               if (type == 0) {
+                 vec3 color = vec3(${c1}, ${c2}, ${c3});
+                 gl_FragColor = vec4(color, ${a});
+               } else if (type == 1) {
+                 vec3 color = hsv2rgb(vec3(${c1}, ${c2}, ${c3}));
+                 gl_FragColor = vec4(color, ${a});
+               } else if (type == 2) {
+                 gl_FragColor = vec4(solid_color, ${a});
+               }
+             }
+             `;
+      }
+
+      let material = new THREE.ShaderMaterial({
+        uniforms: {
+          type: { value: 1 },
+          solid_color: { value: new THREE.Color("#ffffff") },
+          time: { value: 0 },
+          min_point: { value: new THREE.Vector3(Infinity, Infinity, Infinity) },
+          volume: { value: new THREE.Vector3(-Infinity, -Infinity, -Infinity) },
+          normalize_parameters: { value: true },
+          max_time: { value: t_limit },
+          min_time: { value: 0 },
+        },
+        vertexShader: vertexShader,
+        fragmentShader: frag(c1_string, c2_string, c3_string, a_string),
+        transparent: true,
+        side: THREE.DoubleSide,
+      });
+
+      class ParametricCurve {
+        constructor(
+          { f, range, material, interpolate, interpolate_multiplier },
+          ...params
+        ) {
+          this.f = f;
+          this.range = range;
+          this.interpolate = interpolate || false;
+          this.interpolate_multiplier = interpolate_multiplier || 1;
+          this.material = material;
+          this.mesh = new THREE.Line(
+            this.construct_geometry(params, true),
+            this.material
+          );
+        }
+
+        construct_geometry(params) {
+          if (this.mesh && this.mesh.geometry) this.mesh.geometry.dispose();
+          let points = new Array(this.range.steps);
+          let steps = (this.range.end - this.range.start) / this.range.steps;
+
+          let curve = null;
+
+          if (steps === 0) return new THREE.BufferGeometry();
+
+          this.material.uniforms.min_point.value = new THREE.Vector3(
+            Infinity,
+            Infinity,
+            Infinity
+          );
+
+          this.material.uniforms.volume.value = new THREE.Vector3(
+            -Infinity,
+            -Infinity,
+            -Infinity
+          );
+
+          for (
+            let t = this.range.start, i = 0;
+            t <= this.range.end;
+            t += steps, i++
+          ) {
+            let point = new THREE.Vector3();
+            for (let dim in this.f)
+              if (this.f[dim] && Object.hasOwn(point, dim)) {
+                point[dim] = this.f[dim](t, params);
+                if (point[dim] === Infinity) point[dim] = 1000;
+                if (point[dim] === -Infinity) point[dim] = -1000;
+
+                this.material.uniforms.min_point.value[dim] = Math.min(
+                  this.material.uniforms.min_point.value[dim],
+                  point[dim]
+                );
+                this.material.uniforms.volume.value[dim] = Math.max(
+                  this.material.uniforms.volume.value[dim],
+                  point[dim]
+                );
+              }
+            points[i] = point;
+          }
+
+          if (this.material.uniforms.min_point.value.x === Infinity)
+            this.material.uniforms.min_point.value.x = 0;
+          if (this.material.uniforms.min_point.value.y === Infinity)
+            this.material.uniforms.min_point.value.y = 0;
+          if (this.material.uniforms.min_point.value.z === Infinity)
+            this.material.uniforms.min_point.value.z = 0;
+
+          if (this.material.uniforms.volume.value.x === -Infinity)
+            this.material.uniforms.volume.value.x = 0;
+          if (this.material.uniforms.volume.value.y === -Infinity)
+            this.material.uniforms.volume.value.y = 0;
+          if (this.material.uniforms.volume.value.z === -Infinity)
+            this.material.uniforms.volume.value.z = 0;
+
+          this.material.uniforms.volume.value = new THREE.Vector3(
+            this.material.uniforms.volume.value.x -
+              this.material.uniforms.min_point.value.x,
+            this.material.uniforms.volume.value.y -
+              this.material.uniforms.min_point.value.y,
+            this.material.uniforms.volume.value.z -
+              this.material.uniforms.min_point.value.z
+          );
+
+          if (this.interpolate) {
+            if (Object.keys(this.f).length === 2)
+              curve = new THREE.SplineCurve(points);
+            else if (Object.keys(this.f).length === 3) {
+              curve = new THREE.CatmullRomCurve3(points);
+              curve.curveType = "centripetal";
+            }
+            return new THREE.BufferGeometry().setFromPoints(
+              curve.getPoints(
+                Math.round(this.range.steps * this.interpolate_multiplier)
+              )
+            );
+          } else {
+            return new THREE.BufferGeometry().setFromPoints(points);
+          }
+        }
+
+        recalculate(params) {
+          try {
+            this.mesh.geometry = this.construct_geometry(params);
+            this.mesh.geometry.needsUpdate = true;
+            return true;
+          } catch (e) {
+            return false;
+          }
+        }
+      }
+
+      let parametric_curve = new ParametricCurve(
+        {
+          f: {
+            x: function (theta, t) {
+              return Math.sin(theta * 2) * Math.cos(theta * (t - 1));
+            },
+            y: function (theta, t) {
+              return Math.sin(theta) * Math.sin(theta * t);
+            },
+          },
+          range: { start: 0, end: 2 * Math.PI, steps: base_points },
+          material: material,
+          interpolate: true,
+          interpolate_multiplier: 1.5,
+        },
+        1
+      );
+
+      scene.add(parametric_curve.mesh);
+
+      // ========================= SETTINGS =======================
+
+      var current_x = "sin(p * 2) * cos(p * (t - 1))";
+      var current_y = "sin(p) * sin(p * t)";
+      var current_z = "0";
+      var recording = false;
+
+      const color_type = ["rgb", "hsv", "solid"];
+      const export_ext = ["png", "webp", "jpg", "gif", "json"];
+
+      let settings = {
+        x_fn: current_x,
+        y_fn: current_y,
+        z_fn: current_z,
+        p: 1,
+        t_min: 0,
+        t_max: t_limit,
+        normalize_parameters: true,
+        color_type: color_type[1],
+        c1: c1_string,
+        c2: c2_string,
+        c3: c3_string,
+        a: a_string,
+        solid_color: "#ffffff",
+        points: 2000,
+        background: "#000000",
+        background_opacity: 1,
+        toggle_grid: false,
+        grid_helper: 0.2,
+        x_grid: true,
+        y_grid: true,
+        z_grid: true,
+        interpolate_points: true,
+        interpolate_multiplier: 1.5,
+        reset_advanced: function () {
+          settings.points = base_points;
+          settings.interpolate_points = true;
+          settings.interpolate_multiplier = 1.5;
+          parametric_curve.range.steps = settings.points;
+          parametric_curve.interpolate = settings.interpolate_points;
+          parametric_curve.interpolate_multiplier =
+            settings.interpolate_multiplier;
+          parametric_curve.recalculate(settings.time);
+        },
+        animate: true,
+        time: t_limit,
+        speed_multiplier: 1,
+        reset: function () {
+          settings.animate = false;
+          settings.time = settings.t_max;
+          settings.speed_multiplier = 1;
+          parametric_curve.recalculate(settings.time);
+        },
+        delete_curve: function () {},
+        reset_camera: function () {
+          controls.reset();
+        },
+        add_curve: function () {},
+        export_ext: export_ext[0],
+        export: function () {
+          if (settings.export_ext === export_ext[0]) {
+            renderer.domElement.toBlob((blob) => {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.setAttribute(
+                "download",
+                `parametric_curve_${new Date().toISOString()}.png`
+              );
+              a.setAttribute("href", url);
+              a.click();
+              URL.revokeObjectURL(url);
+            });
+          } else if (settings.export_ext === export_ext[1]) {
+            renderer.domElement.toBlob((blob) => {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.setAttribute(
+                "download",
+                `parametric_curve_${new Date().toISOString()}.webp`
+              );
+              a.setAttribute("href", url);
+              a.click();
+              URL.revokeObjectURL(url);
+            }, "image/webp");
+          } else if (settings.export_ext === export_ext[2]) {
+            renderer.domElement.toBlob((blob) => {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.setAttribute(
+                "download",
+                `parametric_curve_${new Date().toISOString()}.jpg`
+              );
+              a.setAttribute("href", url);
+              a.click();
+              URL.revokeObjectURL(url);
+            }, "image/jpeg");
+          } else if (settings.export_ext === export_ext[3]) {
+            renderer.domElement.toBlob((blob) => {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.setAttribute(
+                "download",
+                `parametric_curve_${new Date().toISOString()}.gif`
+              );
+              a.setAttribute("href", url);
+              a.click();
+              URL.revokeObjectURL(url);
+            }, "image/gif");
+          } else if (settings.export_ext === export_ext[4]) {
+            const json = gui.save();
+            const blob = new Blob([JSON.stringify(json)], {
+              type: "application/json",
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.setAttribute(
+              "download",
+              `parametric_curve_${new Date().toISOString()}.json`
+            );
+            a.setAttribute("href", url);
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        },
+        record: function () {
+          if (recording) {
+            record_button.name("Record");
+            export_button.enable();
+            load_button.enable();
+            recorder.stop();
+          } else {
+            record_button.name("Stop Recording");
+            export_button.disable();
+            load_button.disable();
+            recorder.start();
+          }
+
+          recording = !recording;
+        },
+        load_graph: function () {
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = ".json";
+          input.onchange = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const json = JSON.parse(e.target.result);
+              gui.load(json);
+            };
+            reader.readAsText(file);
+          };
+          input.click();
+        },
+      };
+      const coordinates = gui.addFolder("Coordinates (WIP)");
+      const p1 = gui.addFolder("Parametric 1");
+      const functions = p1.addFolder("Functions");
+      functions
+        .add(settings, "x_fn")
+        .name("x(p, t)")
+        .listen()
+        .onFinishChange(() => {
+          try {
+            parametric_curve.f.x = Parser.parse(settings.x_fn).toJSFunction([
+              "p",
+              "t",
+            ]);
+            if (!parametric_curve.recalculate(settings.time)) throw new Error();
+            current_x = settings.x_fn;
+          } catch (e) {
+            settings.x_fn = current_x;
+          }
+        });
+      functions
+        .add(settings, "y_fn")
+        .name("y(p, t)")
+        .listen()
+        .onFinishChange(() => {
+          try {
+            parametric_curve.f.y = Parser.parse(settings.y_fn).toJSFunction([
+              "p",
+              "t",
+            ]);
+            if (!parametric_curve.recalculate(settings.time)) throw new Error();
+            current_y = settings.y_fn;
+          } catch (e) {
+            settings.y_fn = current_y;
+          }
+        });
+      functions
+        .add(settings, "z_fn")
+        .name("z(p, t)")
+        .listen()
+        .onFinishChange(() => {
+          try {
+            parametric_curve.f.z = Parser.parse(settings.z_fn).toJSFunction([
+              "p",
+              "t",
+            ]);
+            if (!parametric_curve.recalculate(settings.time)) throw new Error();
+            current_z = settings.z_fn;
+          } catch (e) {
+            settings.z_fn = current_z;
+          }
+        });
+      const parameters = p1.addFolder("Parameters (WIP)");
+      parameters
+        .add(settings, "p", 0, 1, 0.001)
+        .name("P")
+        .onChange(() => {
+          parametric_curve.range.end = 2 * Math.PI * settings.p;
+          parametric_curve.recalculate(settings.time);
+        });
+      const time_min = parameters
+        .add(settings, "t_min")
+        .name("Min Time")
+        .onChange((value) => {
+          if (value > settings.t_max) {
+            settings.t_max = value;
+            time.max(value);
+            time_max.updateDisplay();
+          }
+        })
+        .onFinishChange((value) => {
+          time.min(value);
+          material.uniforms.min_time.value = value;
+          parametric_curve.recalculate(settings.time);
+        });
+      const time_max = parameters
+        .add(settings, "t_max")
+        .name("Max Time")
+        .onChange((value) => {
+          if (value < settings.t_min) {
+            settings.t_min = value;
+            time.min(value);
+            time_min.updateDisplay();
+          }
+        })
+        .onFinishChange((value) => {
+          time.max(value);
+          material.uniforms.max_time.value = value;
+          parametric_curve.recalculate(settings.time);
+        });
+      const color = p1.addFolder("Color");
+      color
+        .add(settings, "normalize_parameters")
+        .name("Normalize Parameters")
+        .onChange(() => {
+          material.uniforms.normalize_parameters.value =
+            settings.normalize_parameters;
+        });
+      color
+        .add(settings, "color_type", color_type)
+        .name("Color Type")
+        .onChange((value) => {
+          if (value === color_type[0]) {
+            c1.name("R(x, y, z, t)");
+            c2.name("G(x, y, z, t)");
+            c3.name("B(x, y, z, t)");
+            c1.show();
+            c2.show();
+            c3.show();
+            solid_color.hide();
+            material.uniforms.type.value = 0;
+          } else if (value === color_type[1]) {
+            c1.name("H(x, y, z, t)");
+            c2.name("S(x, y, z, t)");
+            c3.name("V(x, y, z, t)");
+            c1.show();
+            c2.show();
+            c3.show();
+            solid_color.hide();
+            material.uniforms.type.value = 1;
+          } else {
+            c1.hide();
+            c2.hide();
+            c3.hide();
+            solid_color.show();
+            material.uniforms.type.value = 2;
+          }
+        });
+      const c1 = color
+        .add(settings, "c1")
+        .name("H(x, y, z, t)")
+        .listen()
+        .onFinishChange((value) => {
+          c1_string = value;
+          material.fragmentShader = frag(
+            c1_string,
+            c2_string,
+            c3_string,
+            a_string
+          );
+          material.needsUpdate = true;
+        });
+      const c2 = color
+        .add(settings, "c2")
+        .name("S(x, y, z, t)")
+        .listen()
+        .onFinishChange((value) => {
+          c2_string = value;
+          material.fragmentShader = frag(
+            c1_string,
+            c2_string,
+            c3_string,
+            a_string
+          );
+          material.needsUpdate = true;
+        });
+      const c3 = color
+        .add(settings, "c3")
+        .name("V(x, y, z, t)")
+        .listen()
+        .onFinishChange((value) => {
+          c3_string = value;
+          material.fragmentShader = frag(
+            c1_string,
+            c2_string,
+            c3_string,
+            a_string
+          );
+          material.needsUpdate = true;
+        });
+      const solid_color = color
+        .addColor(settings, "solid_color")
+        .name("Color")
+        .hide()
+        .onChange((value) => {
+          material.uniforms.solid_color.value = new THREE.Color(value);
+        });
+      color
+        .add(settings, "a")
+        .name("A(x, y, z, t)")
+        .onFinishChange((value) => {
+          a_string = value;
+          material.fragmentShader = frag(
+            c1_string,
+            c2_string,
+            c3_string,
+            a_string
+          );
+          material.needsUpdate = true;
+        });
+      const animation = p1.addFolder("Animation");
+      animation.add(settings, "animate").name("Animate").listen();
+      animation
+        .add(settings, "speed_multiplier", 0, 10, 0.01)
+        .name("Speed Multiplier")
+        .listen();
+      const time = animation
+        .add(settings, "time", settings.t_min, settings.t_max, 0.01)
+        .name("Time")
+        .listen()
+        .onChange((value) => {
+          material.uniforms.time.value = value;
+          parametric_curve.recalculate(settings.time);
+        });
+      animation.add(settings, "reset").name("Reset");
+      animation.open();
+      const advanced = p1.addFolder("Advanced");
+      advanced
+        .add(settings, "points", 100, 10000, 1)
+        .name("Points")
+        .listen()
+        .onChange(() => {
+          parametric_curve.range.steps = settings.points;
+          parametric_curve.recalculate(settings.time);
+        });
+      advanced
+        .add(settings, "interpolate_points")
+        .name("Interpolate Points")
+        .listen()
+        .onChange(() => {
+          parametric_curve.interpolate = settings.interpolate_points;
+          parametric_curve.recalculate(settings.time);
+        });
+      advanced
+        .add(settings, "interpolate_multiplier", 1.1, 10, 0.1)
+        .name("Interpolate Multiplier")
+        .listen()
+        .onChange(() => {
+          parametric_curve.interpolate_multiplier =
+            settings.interpolate_multiplier;
+          parametric_curve.recalculate(settings.time);
+        });
+      advanced.add(settings, "reset_advanced").name("Reset");
+      p1.add(settings, "delete_curve").name("Delete Curve (WIP)");
+      const grid = gui.addFolder("Grid (WIP)");
+      const grid_toggle = grid
+        .add(settings, "toggle_grid")
+        .name("Toggle Grid")
+        .onChange((value) => {
+          if (value) {
+            grid_opacity.enable();
+            x_grid.enable();
+            y_grid.enable();
+            z_grid.enable();
+
+            gridHelper_x.visible = settings.x_grid;
+            gridHelper_y.visible = settings.y_grid;
+            gridHelper_z.visible = settings.z_grid;
+          } else {
+            grid_opacity.disable();
+            x_grid.disable();
+            y_grid.disable();
+            z_grid.disable();
+
+            gridHelper_x.visible = false;
+            gridHelper_y.visible = false;
+            gridHelper_z.visible = false;
+          }
+        });
+      const grid_opacity = grid
+        .add(settings, "grid_helper", 0, 1, 0.01)
+        .name("Grid Opacity")
+        .onChange((value) => {
+          gridHelper_x.material.opacity = value;
+          gridHelper_x.material.needsUpdate = true;
+          gridHelper_y.material.opacity = value;
+          gridHelper_y.material.needsUpdate = true;
+          gridHelper_z.material.opacity = value;
+          gridHelper_z.material.needsUpdate = true;
+        });
+      const x_grid = grid
+        .add(settings, "x_grid")
+        .name("X Grid")
+        .onChange((value) => {
+          gridHelper_x.visible = value;
+        });
+      const y_grid = grid
+        .add(settings, "y_grid")
+        .name("Y Grid")
+        .onChange((value) => {
+          gridHelper_y.visible = value;
+        });
+      const z_grid = grid
+        .add(settings, "z_grid")
+        .name("Z Grid")
+        .onChange((value) => {
+          gridHelper_z.visible = value;
+        });
+      grid_opacity.disable();
+      x_grid.disable();
+      y_grid.disable();
+      z_grid.disable();
+      const general = gui.addFolder("General");
+      general.add(settings, "add_curve").name("Add Curve (WIP)");
+      general.add(settings, "reset_camera").name("Reset Camera");
+      general
+        .addColor(settings, "background")
+        .name("Background")
+        .listen()
+        .onChange(() => {
+          renderer.setClearColor(
+            settings.background,
+            settings.background_opacity
+          );
+        });
+      general
+        .add(settings, "background_opacity", 0, 1, 0.01)
+        .name("Background Opacity")
+        .onChange((value) => {
+          renderer.setClearColor(settings.background, value);
+        });
+      const exp = gui.addFolder("Export");
+      exp.add(settings, "export_ext", export_ext).name("Extension");
+      const export_button = exp.add(settings, "export").name("Export");
+      const record = exp.addFolder("Record");
+      const record_button = record.add(settings, "record").name("Record");
+
+      const load_button = gui.add(settings, "load_graph").name("Load JSON");
+
+      coordinates.close();
+      parameters.close();
+      color.close();
+      advanced.close();
+      grid.close();
+      exp.close();
+      record.close();
+      gui.close();
+
+      // ==========================================================
+
+      function update(delta) {
+        if (settings.animate) {
+          settings.time += delta * settings.speed_multiplier;
+          if (settings.time > settings.t_max) settings.time = settings.t_min;
+          else if (settings.time < settings.t_min)
+            settings.time = settings.t_max;
+          material.uniforms.time.value = settings.time;
+        }
+        stats.update();
+      }
+
+      // ==========================================================
+      // ======================== End Relevant Code ===============
+      // ==========================================================
+
+      function render() {
+        if (settings.animate) {
+          try {
+            if (!parametric_curve.recalculate(settings.time)) throw new Error();
+          } catch (e) {
+            settings.x_fn = current_x;
+            settings.y_fn = current_y;
+            settings.z_fn = current_z;
+            parametric_curve.f.x = Parser.parse(settings.x_fn).toJSFunction([
+              "p",
+              "t",
+            ]);
+            parametric_curve.f.y = Parser.parse(settings.y_fn).toJSFunction([
+              "p",
+              "t",
+            ]);
+            parametric_curve.f.z = Parser.parse(settings.z_fn).toJSFunction([
+              "p",
+              "t",
+            ]);
+            parametric_curve.recalculate(settings.time);
+          }
+        }
+        renderer.render(scene, camera);
+        if (recording) track.requestFrame();
+      }
+
+      function animate() {
+        let delta = clock.getDelta();
+        render();
+        update(delta);
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    </script>
+  </body>
+</html>
+
+<!-- WIP
+  class GridGeometry {
+    constructor({ size, divisions, x, y, z }) {
+      this.size = size;
+      this.divisions = divisions;
+      this.x = x;
+      this.y = y;
+      this.z = z;
+      this.geometry = new THREE.BufferGeometry();
+      this.material = new THREE.LineBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.2,
+      });
+      this.mesh = new THREE.LineSegments(this.geometry, this.material);
+      this.construct_geometry();
+    }
+
+    construct_geometry() {
+      let points1 = [];
+      let points2 = [];
+      let points3 = [];
+      let step = this.size / this.divisions;
+      for (let i = -this.size; i <= this.size; i += step)
+        for (let j = -this.size; j <= this.size; j += step)
+          for (let k = -this.size; k <= this.size; k += step) {
+            points1.push(this.x(i, j, k));
+            points2.push(this.y(i, j, k));
+            points3.push(this.z(i, j, k));
+          }
+      this.geometry.setFromPoints(points1);
+      this.geometry.setFromPoints(points2);
+      this.geometry.setFromPoints(points3);
+    }
+  }
+
+  function frag2() {
+  return `
+   varying vec3 pos;
+   uniform vec3 min_point;
+   uniform vec3 volume;
+   uniform vec3 solid_color;
+   uniform float a;
+   uniform float sa;
+   uniform float line_width;
+   uniform float divisions;
+
+   float function(float x, float smoothness, float gap, float divisions) {
+     float edge1 = 0.5 - gap / 2.0 - smoothness;
+     float edge2 = edge1 + smoothness;
+     float edge3 = edge2 + gap;
+     float edge4 = edge3 + smoothness;
+     x = fract(divisions*x);
+
+     return smoothstep(edge1, edge2, x)
+             * (step(edge1, x) - step(edge3, x))
+             + (1.0 - smoothstep(edge3, edge4, x))
+             * (step(edge3, x) - step(edge4, x));
+   }
+
+   void main() {
+     float x = pos.x;
+     float y = pos.y;
+     float z = pos.z;
+
+     float smoothness = line_width * 0.1;
+
+     float vx = volume.x;
+     float vy = volume.y;
+     float vz = volume.z;
+
+     if (vx == 0.0) vx = 1.0;
+     if (vy == 0.0) vy = 1.0;
+     if (vz == 0.0) vz = 1.0;
+
+     x = (x - min_point.x) / vx;
+     y = (y - min_point.y) / vy;
+     z = (z - min_point.z) / vz;
+
+     float v1 = function(x - 0.5, smoothness, line_width - smoothness, divisions);
+     float v2 = function(y - 0.5, smoothness, line_width - smoothness, divisions);
+     float v3 = function(z - 0.5, smoothness, line_width - smoothness, divisions);
+
+     bool vv1 = v1 > 0.0;
+     bool vv2 = v2 > 0.0;
+     bool vv3 = v3 > 0.0;
+
+     if (vv1 || vv2 || vv3) {
+       gl_FragColor = vec4(vv1, vv2, vv3, a * (v1 + v2 + v3) / 3.0);
+     } else {
+       gl_FragColor = vec4(solid_color, sa);
+     }
+   }
+  `;
+}
+
+function func(x, y, z) {
+  return (u, v, target) => {
+    u = 2 * (u - 0.5);
+    v = 2 * (v - 0.5);
+    let X = x(u, v);
+    let Y = y(u, v);
+    let Z = z(u, v);
+    target.set(X, Y, Z);
+  };
+}
+
+const testMat = new THREE.ShaderMaterial({
+  uniforms: {
+    solid_color: { value: new THREE.Color("#ffffff") },
+    min_point: { value: new THREE.Vector3(Infinity, Infinity, Infinity) },
+    volume: { value: new THREE.Vector3(-Infinity, -Infinity, -Infinity) },
+    a: { value: 1.0 },
+    sa: { value: 0.02 },
+    divisions: { value: 10 },
+    line_width: { value: 0.05 },
+  },
+  vertexShader: vertexShader,
+  fragmentShader: frag2(),
+  transparent: true,
+  side: THREE.DoubleSide,
+  depthTest: false,
+});
+
+var surfaces = {
+  r: {
+    x: `sin(PI*u)*cos(PI*v/2)`,
+    y: `sin(PI*u)*sin(PI*v/2)`,
+    z: `cos(PI*u)`,
+  },
+  theta: {
+    x: `u*cos(PI*v/2)`,
+    y: `u*sin(PI*v/2)`,
+    z: `0`,
+  },
+  phi: {
+    x: `u*sin(PI*v/2)`,
+    y: `0`,
+    z: `u*cos(PI*v/2)`,
+  },
+};
+
+for (let [
+  name,
+  { x: current_x, y: current_y, z: current_z },
+] of Object.entries(surfaces)) {
+  var current_x_fn = Parser.parse(current_x).toJSFunction(["u", "v"]);
+  var current_y_fn = Parser.parse(current_y).toJSFunction(["u", "v"]);
+  var current_z_fn = Parser.parse(current_z).toJSFunction(["u", "v"]);
+
+  const testGeo = new ParametricGeometry(
+    func(current_x_fn, current_y_fn, current_z_fn),
+    128,
+    128,
+    128
+  );
+
+  const testMesh = new THREE.Mesh(testGeo, testMat.clone());
+
+  testMesh.geometry.computeBoundingBox();
+
+  testMesh.material.uniforms.min_point.value.copy(
+    testMesh.geometry.boundingBox.min
+  );
+
+  testMesh.material.uniforms.volume.value.copy(
+    testMesh.geometry.boundingBox.max
+  );
+
+  scene.add(testMesh);
+} -->
