@@ -32,7 +32,7 @@
       main {
         display: flex;
         justify-content: center;
-        gap: 10rem;
+        gap: 5%;
         align-items: center;
         flex: 1;
         background-color: #f1f1f1;
@@ -76,6 +76,13 @@
 
       a:hover {
         text-decoration: underline;
+      }
+
+      @media (max-width: 768px) {
+        main {
+          flex-direction: column;
+          gap: 20px;
+        }
       }
     </style>
     <title>References</title>
