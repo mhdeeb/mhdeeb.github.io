@@ -42,13 +42,17 @@
         flex-direction: column;
         width: 300px;
         min-height: 180px;
+        height: 100%;
         border: 1px solid #ccc;
         border-radius: 5px;
         overflow: hidden;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
       }
       .card__content {
+        display: flex;
+        flex-direction: column;
         padding: 20px;
+        flex: 1;
       }
 
       .card__title {
@@ -64,7 +68,8 @@
       }
 
       a {
-        color: #4e6074;
+        font: 2em;
+        color: #1a3658;
         text-decoration: none;
         font-size: 1rem;
       }
@@ -87,6 +92,7 @@
             Associate Professor - Communications and Information Engineering at
             Zewail City for Science and Technology
           </p>
+          <div style="flex: 1"></div>
           <a href="https://www.linkedin.com/in/tameraali"
             >linkedin.com/in/tameraali</a
           >
@@ -97,6 +103,7 @@
         <div class="card__content">
           <h3 class="card__title">Dr. Layth Qassem</h3>
           <p class="card__text">Co-founder at TheBuyMore</p>
+          <div style="flex: 1"></div>
           <a href="https://www.linkedin.com/in/laythqassem"
             >linkedin.com/in/laythqassem</a
           >
