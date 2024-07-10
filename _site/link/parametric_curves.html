@@ -487,6 +487,18 @@
           parametric_curve.recalculate(settings.time);
         },
         delete_curve: function () {},
+        camera_x: function () {
+          camera.position.set(5, 0, 0);
+          camera.lookAt(0, 0, 0);
+        },
+        camera_y: function () {
+          camera.position.set(0, 5, 0);
+          camera.lookAt(0, 0, 0);
+        },
+        camera_z: function () {
+          camera.position.set(0, 0, 5);
+          camera.lookAt(0, 0, 0);
+        },
         reset_camera: function () {
           controls.reset();
         },
@@ -881,7 +893,6 @@
       z_grid.disable();
       const general = gui.addFolder("General");
       general.add(settings, "add_curve").name("Add Curve (WIP)");
-      general.add(settings, "reset_camera").name("Reset Camera");
       general
         .addColor(settings, "background")
         .name("Background")
@@ -898,6 +909,11 @@
         .onChange((value) => {
           renderer.setClearColor(settings.background, value);
         });
+      const cmra = gui.addFolder("Camera");
+      cmra.add(settings, "camera_x").name("Camera X");
+      cmra.add(settings, "camera_y").name("Camera Y");
+      cmra.add(settings, "camera_z").name("Camera Z");
+      cmra.add(settings, "reset_camera").name("Reset Camera");
       const exp = gui.addFolder("Export");
       exp.add(settings, "export_ext", export_ext).name("Extension");
       const export_button = exp.add(settings, "export").name("Export");
@@ -911,6 +927,7 @@
       color.close();
       advanced.close();
       grid.close();
+      cmra.close();
       exp.close();
       record.close();
       gui.close();

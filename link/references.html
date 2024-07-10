@@ -31,11 +31,11 @@
       }
       main {
         display: flex;
-        justify-content: center;
-        gap: 5%;
+        justify-content: space-evenly;
         align-items: center;
         flex: 1;
         background-color: #f1f1f1;
+        flex-wrap: wrap;
       }
       .card {
         display: flex;
@@ -77,13 +77,6 @@
       a:hover {
         text-decoration: underline;
       }
-
-      @media (max-width: 768px) {
-        main {
-          flex-direction: column;
-          gap: 20px;
-        }
-      }
     </style>
     <title>References</title>
   </head>
@@ -93,7 +86,7 @@
     </header>
     <main>
       <div class="card">
-        <!-- <div class="card__content">
+        <div class="card__content">
           <h3 class="card__title">Dr. Tamer Ashour Ali</h3>
           <p class="card__text">
             Associate Professor - Communications and Information Engineering at
@@ -108,7 +101,7 @@
           >
           <a href="mailto:tali@zewailcity.edu.eg">tali@zewailcity.edu.eg</a>
         </div>
-      </div> -->
+      </div>
       <div class="card">
         <div class="card__content">
           <h3 class="card__title">Dr. Layth Qassem</h3>
