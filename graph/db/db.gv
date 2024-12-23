@@ -1,0 +1,91 @@
+digraph {
+	engine=neato fontname="JetBrainsMono Nerd Font,Helvetica,Arial,sans-serif" fontsize=24 charset="UTF-8"
+	graph [label="Database Pipeline" margin=0]
+	
+	subgraph cluster_data {
+		style="filled,rounded" color=black fillcolor="#7aaaf3" margin=8
+		label="data";
+		subgraph cluster_data_sources {
+			style="filled,rounded" color=black fillcolor="#7a7af3" margin=8
+			label="sources";
+
+			subgraph cluster_data_source_1 {
+				label="source1";
+				style="filled,rounded" color=black fillcolor=lightgrey margin=8;
+				node [color=black style=filled shape=box fillcolor="#ff3dff"];
+				raw1 [label="raw_data"];
+				processed1 [label="processed_data"];
+			}
+
+			subgraph cluster_data_source_2 {
+				label="source2";
+				style="filled,rounded" color=black fillcolor=lightgrey margin=8;
+				node [color=black style=filled shape=box fillcolor="#ff3dff"];
+				raw2 [label="raw_data"];
+				processed2 [label="processed_data"];
+			}
+
+			subgraph cluster_data_source_rest {
+				label="";
+				color="transparent";
+				E1[shape=none  label="&#8943;" fontsize=30]
+			}
+		}
+	}
+
+	subgraph cluster_backend {
+		style="filled,rounded" color=black fillcolor="#7aaaf3" margin=8
+		label="backend";
+
+		subgraph cluster_backend_sources {
+			style="filled,rounded" color=black fillcolor="#7a7af3" margin=8
+			label="sources";
+
+			subgraph cluster_backend_source_1 {
+				label="source1";
+				style="filled,rounded" color=black fillcolor=lightgrey margin=8;
+				node [color=black fillcolor="#ff3d3d" style=filled];
+				collect1 [label="collect.py"];
+				process1 [label="process.py"];
+				interface1 [label="interface.py"];
+			}
+			
+			subgraph cluster_backend_source_2 {
+				label="source2";
+				style="filled,rounded" color=black fillcolor=lightgrey margin=8;
+				node [color=black fillcolor="#ff3d3d" style=filled];
+				collect2 [label="collect.py"];
+				process2 [label="process.py"];
+				interface2 [label="interface.py"];
+			}
+
+			subgraph cluster_backend_source_rest {
+				label="";
+				color="transparent";
+				E2[shape=none  label="&#8943;" fontsize=30]
+			}
+		}
+
+		node [color=black fillcolor="#ff3d3d" style=filled];
+		processor [label="processor.py"]
+		populate [label="populate.py"]
+	}
+
+	database [color=black fillcolor="#43ce43" shape=box style="rounded,filled"];
+	frontend [color=black fillcolor="#43ce43" shape=box style="rounded,filled"];
+	user [color=black fillcolor="#03caa0" shape=diamond style="filled"];
+	internet [color=black fillcolor="#03caa0" shape=diamond style="filled"];
+
+	internet -> collect1;
+	internet -> collect2;
+	internet -> E2;
+	populate -> database -> frontend;
+	frontend -> user [dir=both];
+	collect2 -> raw2 -> process2 -> processed2 -> interface2;
+	collect1 -> raw1 -> process1 -> processed1 -> interface1;
+	E1 -> E2 [dir=both];
+	E2 -> processor;
+	interface1 -> processor;
+	interface2 -> processor;
+	processor -> populate;
+}
