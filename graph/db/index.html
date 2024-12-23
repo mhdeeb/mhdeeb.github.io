@@ -5,10 +5,17 @@
   <script src="d3-graphviz.js"></script>
   <div id="graph"></div>
   <script>
+    var margin = 20;
+    var width = window.innerWidth - margin;
+    var height = window.innerHeight - margin;
     fetch("db.gv")
       .then((response) => response.text())
       .then((data) => {
-        d3.select("#graph").graphviz().renderDot(data);
+        d3.select("#graph")
+          .graphviz()
+          .width(width)
+          .height(height)
+          .renderDot(data);
       });
   </script>
 </body>
